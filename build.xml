@@ -1,41 +1,28 @@
-<project name="Example Build Script" basedir="." default="deploy.local">
-    <!-- Set variables for build directories -->
+<project name="burp-hash build" basedir="." default="build.jar">
     <property name="build.dir" value="build"/>
     <property name="src.dir" value="src"/>
-    <property name="lib.dir" value="lib"/>
-    <property name="deploy.dir.local" value="dist"/>
-    
-    <path id="class.path">
-        <fileset dir="${lib.dir}" includes="*.jar"/>
-    </path>
-
-    <target name="-init" depends="clean">
-        <echo>Creating temporary folders...</echo>
-        <mkdir dir="${build.dir}"/>
-    </target>
+    <property name="dist.dir" value="dist"/>
+    <property name="dist.jar" value="${dist.dir}/burp-hash.jar"/>
     
     <target name="clean" description="Clean up">
         <echo>Cleaning up...</echo>
-        <delete dir="${build.dir}"/>
-    </target>
-    
-    <target name="build" depends="-init" description="Build project">
-        <echo>Copying files to build folder...</echo>
-        <copy todir="${build.dir}">
-            <fileset dir="${src.dir}"/>
-        </copy>
-    </target>
-    
-    <target name="deploy.local" depends="build" description="Deploy to local webserver">
-        <echo>Deleting files from local webserver...</echo>
         <delete>
-            <fileset dir="${deploy.dir.local}"/>
+            <fileset dir="${build.dir}"/>
+            <fileset dir="${dist.dir}"/>
+        </delete>
+    </target>
+    
+    <target name="build" depends="clean" description="Build project">
+    </target>
+    
+    <target name="build.jar" depends="build" description="Deploy to local webserver">
+        <echo>Deleting files from dist</echo>
+        <delete>
+            <fileset dir="${dist.dir}"/>
         </delete>
         
-        <echo>Copying files to local webserver...</echo>
-        <copy todir="${deploy.dir.local}">
-            <fileset dir="${build.dir}"/>
-        </copy>
+        <echo>Building jar</echo>
+        <jar destfile="${dist.jar}" basedir="${build.dir}"/>
         
         <antcall target="clean"/>
     </target>

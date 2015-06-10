@@ -39,9 +39,5 @@
         
         <antcall target="clean"/>
     </target>
-    
-        <!-- Clean up -->
-        <antcall target="clean"/>
-    </target>
-    
+
 </project>

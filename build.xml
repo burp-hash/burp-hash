@@ -5,6 +5,7 @@
     <property name="dist.jar" value="${dist.dir}/burp-hash.jar"/>
     
     <target name="clean" description="Clean up">
+        <mkdir dir="${build.dir}"/>
         <delete>
             <fileset dir="${build.dir}"/>
         </delete>

@@ -5,26 +5,21 @@
     <property name="dist.jar" value="${dist.dir}/burp-hash.jar"/>
     
     <target name="clean" description="Clean up">
-        <echo>Cleaning up...</echo>
         <delete>
             <fileset dir="${build.dir}"/>
-            <fileset dir="${dist.dir}"/>
         </delete>
     </target>
     
     <target name="build" depends="clean" description="Build project">
+        <javac srcdir="${src.dir}" destdir="${build.dir}" includeantruntime="false"/>
     </target>
     
-    <target name="build.jar" depends="build" description="Deploy to local webserver">
-        <echo>Deleting files from dist</echo>
+    <target name="build.jar" depends="build" description="Build JAR file">
         <delete>
             <fileset dir="${dist.dir}"/>
         </delete>
-        
-        <echo>Building jar</echo>
+        <copy file="LICENSE" tofile="${build.dir}/LICENSE"/>
         <jar destfile="${dist.jar}" basedir="${build.dir}"/>
-        
-        <antcall target="clean"/>
+        <!--<antcall target="clean"/>-->
     </target>
-
 </project>

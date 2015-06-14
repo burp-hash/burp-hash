@@ -78,6 +78,7 @@ hs_err_pid*
 
 # eclipse
 .project
+.settings
 /bin/
 .classpath
 .externalToolBuilders

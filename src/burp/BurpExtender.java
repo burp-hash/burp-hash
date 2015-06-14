@@ -1,30 +1,81 @@
 package burp;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.OutputStream;
+import java.io.PrintWriter;
+import java.io.Serializable;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Pattern;
 
 public class BurpExtender implements IBurpExtender, IScannerCheck {
 
-	public static final String EXTENSION_NAME = "burp-hash";
+	private static final String extensionName = "burp-hash";
+	private static Map<String,String> hashdb = new ConcurrentHashMap<>();
+	private static Map<Integer, List<String>> algos = new ConcurrentHashMap<>();
+	private static Map<Integer, Pattern> regex = new ConcurrentHashMap<>();
 	private IBurpExtenderCallbacks callbacks;
 	private IExtensionHelpers helpers;
+	private PrintWriter stdErr;
+	private PrintWriter stdOut;
+	private Config config;
 
 	@Override
-	public void registerExtenderCallbacks(final IBurpExtenderCallbacks callbacks) {
-		this.callbacks = callbacks;
-		this.helpers = callbacks.getHelpers();
+	public void registerExtenderCallbacks(final IBurpExtenderCallbacks c) {
+		callbacks = c;
+		helpers = callbacks.getHelpers();
+		stdErr = new PrintWriter(callbacks.getStderr(),true);
+		stdOut = new PrintWriter(callbacks.getStdout(), true);
 
-		callbacks.setExtensionName(EXTENSION_NAME);
+		// set extension name in burp
+		callbacks.setExtensionName(extensionName);
+		
+		// load configuration
+		try {
+			config = Config.load(callbacks);
+		} catch (Exception e) {
+			stdErr.println("Error loading config: " + e.getMessage());
+		}
+
+		// build algorithm table
+		if (algos == null) {
+			algos.putIfAbsent(32, Arrays.asList("MD5"));
+			algos.putIfAbsent(40, Arrays.asList("SHA"));
+			algos.putIfAbsent(56, Arrays.asList("SHA-224"));
+			algos.putIfAbsent(64, Arrays.asList("SHA-256"));
+			algos.putIfAbsent(96, Arrays.asList("SHA-384"));
+			algos.putIfAbsent(128, Arrays.asList("SHA-512"));
+		}
+		// build regex list
+		if (regex == null) {
+			Iterator<Integer> i = algos.keySet().iterator();
+			while (i.hasNext()) {
+				int n = i.next();
+				regex.putIfAbsent(n, Pattern.compile(String.format(
+						"[0-9a-fA-F]{%s}", n)));
+			}
+		}
+
 		callbacks.registerScannerCheck(this);
 	}
 
+	// doActiveScan is required but not used
 	@Override
 	public List<IScanIssue> doActiveScan(
 			IHttpRequestResponse baseRequestResponse,
 			IScannerInsertionPoint insertionPoint) {
-		return null; // no active scans
+		return null;
 	}
 
 	@Override
@@ -120,7 +171,7 @@ class Item implements ICookie, IParameter {
 }
 
 /**
- * Impementation of the IScanIssue interface.
+ * Implementation of the IScanIssue interface.
  *
  * @author sjohnson
  *
@@ -210,4 +261,48 @@ class Issue implements IScanIssue {
 		return this.httpService;
 	}
 
+}
+
+class Config implements Serializable {
+	private static final long serialVersionUID = 1L;
+	private transient IBurpExtenderCallbacks callbacks;
+	private PrintWriter stdErr;
+	private PrintWriter stdOut;
+	public boolean isMd5Enabled = true;
+	public boolean isSha1Enabled = true;
+	public boolean isSha224Enabled = false;
+	public boolean isSha256Enabled = true;
+	public boolean isSha384Enabled = false;
+	public boolean isSha512Enabled = false;
+
+	private Config(IBurpExtenderCallbacks c) {
+		callbacks = c;
+		stdErr = new PrintWriter(c.getStderr(), true);
+		stdOut = new PrintWriter(c.getStdout(), true);
+		stdOut.println("No Existing Config.");
+	}
+
+	public static Config load(IBurpExtenderCallbacks c) throws Exception {
+		String savedConfig = c.loadExtensionSetting("burp-hash");
+		if (savedConfig == null) {
+			return new Config(c);
+		}
+		ByteArrayInputStream b = new ByteArrayInputStream(
+				savedConfig.getBytes());
+		ObjectInputStream in = new ObjectInputStream(b);
+		Config cfg = (Config) in.readObject();
+		cfg.callbacks = c;
+		cfg.stdErr = new PrintWriter(c.getStderr());
+		cfg.stdOut = new PrintWriter(c.getStdout());
+		cfg.stdOut.println("Loaded Config");
+		return cfg;
+	}
+
+	public void save() throws Exception {
+		ByteArrayOutputStream b = new ByteArrayOutputStream();
+		ObjectOutputStream out = new ObjectOutputStream(b);
+		out.writeObject(this);
+		callbacks.saveExtensionSetting("burp-hash", b.toString());
+		stdOut.println("saved config: " + b.toString());
+	}
 }

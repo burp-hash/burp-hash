@@ -2,16 +2,14 @@ package burp;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.Serializable;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
@@ -22,7 +20,7 @@ import java.util.regex.Pattern;
 public class BurpExtender implements IBurpExtender, IScannerCheck {
 
 	private static final String extensionName = "burp-hash";
-	private static Map<String,String> hashdb = new ConcurrentHashMap<>();
+	private static Map<String, String> hashdb = new ConcurrentHashMap<>();
 	private static Map<Integer, List<String>> algos = new ConcurrentHashMap<>();
 	private static Map<Integer, Pattern> regex = new ConcurrentHashMap<>();
 	private IBurpExtenderCallbacks callbacks;
@@ -35,17 +33,18 @@ public class BurpExtender implements IBurpExtender, IScannerCheck {
 	public void registerExtenderCallbacks(final IBurpExtenderCallbacks c) {
 		callbacks = c;
 		helpers = callbacks.getHelpers();
-		stdErr = new PrintWriter(callbacks.getStderr(),true);
+		stdErr = new PrintWriter(callbacks.getStderr(), true);
 		stdOut = new PrintWriter(callbacks.getStdout(), true);
 
 		// set extension name in burp
 		callbacks.setExtensionName(extensionName);
-		
+
 		// load configuration
 		try {
 			config = Config.load(callbacks);
 		} catch (Exception e) {
 			stdErr.println("Error loading config: " + e.getMessage());
+			e.printStackTrace(stdErr);
 		}
 
 		// build algorithm table
@@ -62,8 +61,8 @@ public class BurpExtender implements IBurpExtender, IScannerCheck {
 			Iterator<Integer> i = algos.keySet().iterator();
 			while (i.hasNext()) {
 				int n = i.next();
-				regex.putIfAbsent(n, Pattern.compile(String.format(
-						"[0-9a-fA-F]{%s}", n)));
+				regex.putIfAbsent(n,
+						Pattern.compile(String.format("[0-9a-fA-F]{%s}", n)));
 			}
 		}
 
@@ -104,9 +103,6 @@ public class BurpExtender implements IBurpExtender, IScannerCheck {
 /**
  * This implementation of ICookie and IParameter is used to homogenize the two
  * object types during processing.
- *
- * @author sjohnson
- *
  */
 class Item implements ICookie, IParameter {
 	// TODO: add a constructor and remove null and -1 returns
@@ -172,9 +168,6 @@ class Item implements ICookie, IParameter {
 
 /**
  * Implementation of the IScanIssue interface.
- *
- * @author sjohnson
- *
  */
 class Issue implements IScanIssue {
 	private IHttpService httpService;
@@ -263,11 +256,14 @@ class Issue implements IScanIssue {
 
 }
 
+/**
+ * Manages settings for the extension.
+ */
 class Config implements Serializable {
 	private static final long serialVersionUID = 1L;
 	private transient IBurpExtenderCallbacks callbacks;
-	private PrintWriter stdErr;
-	private PrintWriter stdOut;
+	private transient PrintWriter stdErr;
+	private transient PrintWriter stdOut;
 	public boolean isMd5Enabled = true;
 	public boolean isSha1Enabled = true;
 	public boolean isSha224Enabled = false;
@@ -279,22 +275,22 @@ class Config implements Serializable {
 		callbacks = c;
 		stdErr = new PrintWriter(c.getStderr(), true);
 		stdOut = new PrintWriter(c.getStdout(), true);
-		stdOut.println("No Existing Config.");
+		stdOut.println("No saved settings found — using defaults.");
 	}
 
 	public static Config load(IBurpExtenderCallbacks c) throws Exception {
-		String savedConfig = c.loadExtensionSetting("burp-hash");
-		if (savedConfig == null) {
+		String encodedConfig = c.loadExtensionSetting("burp-hash");
+		if (encodedConfig == null) {
 			return new Config(c);
 		}
-		ByteArrayInputStream b = new ByteArrayInputStream(
-				savedConfig.getBytes());
+		byte[] decodedConfig = Base64.getDecoder().decode(encodedConfig);
+		ByteArrayInputStream b = new ByteArrayInputStream(decodedConfig);
 		ObjectInputStream in = new ObjectInputStream(b);
 		Config cfg = (Config) in.readObject();
 		cfg.callbacks = c;
-		cfg.stdErr = new PrintWriter(c.getStderr());
-		cfg.stdOut = new PrintWriter(c.getStdout());
-		cfg.stdOut.println("Loaded Config");
+		cfg.stdErr = new PrintWriter(c.getStderr(), true);
+		cfg.stdOut = new PrintWriter(c.getStdout(), true);
+		cfg.stdOut.println("Successfully loaded settings.");
 		return cfg;
 	}
 
@@ -302,7 +298,8 @@ class Config implements Serializable {
 		ByteArrayOutputStream b = new ByteArrayOutputStream();
 		ObjectOutputStream out = new ObjectOutputStream(b);
 		out.writeObject(this);
-		callbacks.saveExtensionSetting("burp-hash", b.toString());
-		stdOut.println("saved config: " + b.toString());
+		String encoded = Base64.getEncoder().encodeToString(b.toByteArray());
+		callbacks.saveExtensionSetting("burp-hash", encoded);
+		stdOut.println("Successfully saved settings.");
 	}
 }

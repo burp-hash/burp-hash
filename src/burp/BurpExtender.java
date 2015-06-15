@@ -8,6 +8,7 @@ import java.io.PrintWriter;
 import java.io.Serializable;
 import java.net.URL;
 import java.security.MessageDigest;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Date;
@@ -47,7 +48,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck {
 			e.printStackTrace(stdErr);
 		}
 
-		// build algorithm table
+		// build algorithm table keyed on hexdigest length
 		if (algos == null) {
 			algos.putIfAbsent(32, Arrays.asList("MD5"));
 			algos.putIfAbsent(40, Arrays.asList("SHA"));
@@ -66,6 +67,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck {
 			}
 		}
 
+		// register with Burp as a scanner
 		callbacks.registerScannerCheck(this);
 	}
 
@@ -81,6 +83,19 @@ public class BurpExtender implements IBurpExtender, IScannerCheck {
 	public List<IScanIssue> doPassiveScan(
 			IHttpRequestResponse baseRequestResponse) {
 		// TODO: implement method - this is where the real action begins
+		List<Item> items = new ArrayList<>();
+		IRequestInfo req = this.helpers.analyzeRequest(baseRequestResponse);
+		List<IParameter> params = req.getParameters();
+		for (IParameter param : params) {
+			items.add(new Item(param));
+		}
+		IResponseInfo resp = this.helpers.analyzeResponse(baseRequestResponse.getResponse());
+		List<ICookie> cookies = resp.getCookies();
+		for (ICookie cookie : cookies) {
+			items.add(new Item(cookie));
+		}
+		this.stdOut.println("Items stored: " + items.size());
+		this.stdOut.println(items.get(0).getName());
 		return null;
 	}
 
@@ -97,209 +112,5 @@ public class BurpExtender implements IBurpExtender, IScannerCheck {
 	private Object[] generateHashes() {
 		// TODO: only generate hashes that are enabled in config
 		return null;
-	}
-}
-
-/**
- * This implementation of ICookie and IParameter is used to homogenize the two
- * object types during processing.
- */
-class Item implements ICookie, IParameter {
-	// TODO: add a constructor and remove null and -1 returns
-	public static final int COOKIE = 1;
-	public static final int PARAMETER = 0;
-
-	public Object getItem() {
-		return null;
-	}
-
-	public int getItemType() {
-		return -1;
-	}
-
-	// Methods common to both interfaces
-	@Override
-	public String getName() {
-		return null;
-	}
-
-	@Override
-	public String getValue() {
-		return null;
-	}
-
-	// ICookie methods
-	@Override
-	public String getDomain() {
-		return null;
-	}
-
-	@Override
-	public Date getExpiration() {
-		return null;
-	}
-
-	// IParameter methods
-	@Override
-	public byte getType() {
-		return -1;
-	}
-
-	@Override
-	public int getNameStart() {
-		return -1;
-	}
-
-	@Override
-	public int getNameEnd() {
-		return -1;
-	}
-
-	@Override
-	public int getValueStart() {
-		return -1;
-	}
-
-	@Override
-	public int getValueEnd() {
-		return -1;
-	}
-}
-
-/**
- * Implementation of the IScanIssue interface.
- */
-class Issue implements IScanIssue {
-	private IHttpService httpService;
-	private URL url;
-	private IHttpRequestResponse[] httpMessages;
-	private String issueName;
-	private String issueDetail;
-	private String severity;
-	private String confidence;
-	private String remediationDetail;
-	private String issueBackground;
-	private String remediationBackground;
-
-	// TODO: finish constructor and remove all null returns
-	public Issue(IHttpService httpService, URL url,
-			IHttpRequestResponse[] httpMessages, String issueName,
-			String issueDetail, String severity, String confidence,
-			String remediationDetail, String issueBackground,
-			String remediationBackground) {
-		this.httpService = httpService;
-		this.url = url;
-		this.httpMessages = httpMessages;
-		this.issueName = issueName;
-		this.issueDetail = issueDetail;
-		this.severity = severity;
-		this.confidence = confidence;
-		this.remediationDetail = remediationDetail;
-		this.issueBackground = issueBackground;
-		this.remediationBackground = remediationBackground;
-	}
-
-	@Override
-	public URL getUrl() {
-		return this.url;
-	}
-
-	@Override
-	public String getIssueName() {
-		return this.issueName;
-	}
-
-	@Override
-	public int getIssueType() {
-		return 134217728; // type is always "extension generated"
-	}
-
-	@Override
-	public String getSeverity() {
-		return this.severity;
-	}
-
-	@Override
-	public String getConfidence() {
-		return this.confidence;
-	}
-
-	@Override
-	public String getIssueBackground() {
-		return this.issueBackground;
-	}
-
-	@Override
-	public String getRemediationBackground() {
-		return this.remediationBackground;
-	}
-
-	@Override
-	public String getIssueDetail() {
-		return this.issueDetail;
-	}
-
-	@Override
-	public String getRemediationDetail() {
-		return this.remediationDetail;
-	}
-
-	@Override
-	public IHttpRequestResponse[] getHttpMessages() {
-		return this.httpMessages;
-	}
-
-	@Override
-	public IHttpService getHttpService() {
-		return this.httpService;
-	}
-
-}
-
-/**
- * Manages settings for the extension.
- */
-class Config implements Serializable {
-	private static final long serialVersionUID = 1L;
-	private transient IBurpExtenderCallbacks callbacks;
-	private transient PrintWriter stdErr;
-	private transient PrintWriter stdOut;
-	public boolean isMd5Enabled = true;
-	public boolean isSha1Enabled = true;
-	public boolean isSha224Enabled = false;
-	public boolean isSha256Enabled = true;
-	public boolean isSha384Enabled = false;
-	public boolean isSha512Enabled = false;
-
-	private Config(IBurpExtenderCallbacks c) {
-		callbacks = c;
-		stdErr = new PrintWriter(c.getStderr(), true);
-		stdOut = new PrintWriter(c.getStdout(), true);
-		stdOut.println("No saved settings found — using defaults.");
-	}
-
-	public static Config load(IBurpExtenderCallbacks c) throws Exception {
-		String encodedConfig = c.loadExtensionSetting("burp-hash");
-		if (encodedConfig == null) {
-			return new Config(c);
-		}
-		byte[] decodedConfig = Base64.getDecoder().decode(encodedConfig);
-		ByteArrayInputStream b = new ByteArrayInputStream(decodedConfig);
-		ObjectInputStream in = new ObjectInputStream(b);
-		Config cfg = (Config) in.readObject();
-		cfg.callbacks = c;
-		cfg.stdErr = new PrintWriter(c.getStderr(), true);
-		cfg.stdOut = new PrintWriter(c.getStdout(), true);
-		cfg.stdOut.println("Successfully loaded settings.");
-		return cfg;
-	}
-
-	public void save() throws Exception {
-		ByteArrayOutputStream b = new ByteArrayOutputStream();
-		ObjectOutputStream out = new ObjectOutputStream(b);
-		out.writeObject(this);
-		String encoded = Base64.getEncoder().encodeToString(b.toByteArray());
-		callbacks.saveExtensionSetting("burp-hash", encoded);
-		stdOut.println("Successfully saved settings.");
 	}
 }

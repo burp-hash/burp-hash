@@ -34,51 +34,83 @@ class Item implements ICookie, IParameter {
 	@Override
 	public String getName() {
 		if (this.getItemType() == Item.COOKIE) {
-			return ((ICookie)item).getName();
+			return ((ICookie) item).getName();
 		} else {
-			return ((IParameter)item).getName();
+			return ((IParameter) item).getName();
 		}
 	}
 
 	@Override
 	public String getValue() {
-		return ((Item)item).getValue();
+		if (this.getItemType() == Item.COOKIE) {
+			return ((ICookie) item).getValue();
+		} else {
+			return ((IParameter) item).getValue();
+		}
 	}
 
 	// ICookie methods
 	@Override
 	public String getDomain() {
-		return ((Item)item).getDomain();
+		if (this.getItemType() == Item.COOKIE) {
+			return ((ICookie) item).getDomain();
+		} else {
+			return null;
+		}
 	}
 
 	@Override
 	public Date getExpiration() {
-		return ((Item)item).getExpiration();
+		if (this.getItemType() == Item.COOKIE) {
+			return ((ICookie) item).getExpiration();
+		} else {
+			return null;
+		}
 	}
 
 	// IParameter methods
 	@Override
 	public byte getType() {
-		return ((Item)item).getType();
+		if (this.getItemType() == Item.PARAMETER) {
+			return ((IParameter) item).getType();
+		} else {
+			return -1;
+		}
 	}
 
 	@Override
 	public int getNameStart() {
-		return ((Item)item).getNameStart();
+		if (this.getItemType() == Item.PARAMETER) {
+			return ((IParameter) item).getNameStart();
+		} else {
+			return -1;
+		}
 	}
 
 	@Override
 	public int getNameEnd() {
-		return ((Item)item).getNameEnd();
+		if (this.getItemType() == Item.PARAMETER) {
+			return ((IParameter) item).getNameEnd();
+		} else {
+			return -1;
+		}
 	}
 
 	@Override
 	public int getValueStart() {
-		return ((Item)item).getValueStart();
+		if (this.getItemType() == Item.PARAMETER) {
+			return ((IParameter) item).getValueStart();
+		} else {
+			return -1;
+		}
 	}
 
 	@Override
 	public int getValueEnd() {
-		return ((Item)item).getValueEnd();
+		if (this.getItemType() == Item.PARAMETER) {
+			return ((IParameter) item).getValueEnd();
+		} else {
+			return -1;
+		}
 	}
 }

@@ -89,13 +89,13 @@ public class BurpExtender implements IBurpExtender, IScannerCheck {
 		for (IParameter param : params) {
 			items.add(new Item(param));
 		}
-		IResponseInfo resp = this.helpers.analyzeResponse(baseRequestResponse.getResponse());
+		IResponseInfo resp = this.helpers.analyzeResponse(baseRequestResponse
+				.getResponse());
 		List<ICookie> cookies = resp.getCookies();
 		for (ICookie cookie : cookies) {
 			items.add(new Item(cookie));
 		}
-		this.stdOut.println("Items stored: " + items.size());
-		this.stdOut.println(items.get(0).getName());
+		// this.stdOut.println("Items stored: " + items.size());
 		return null;
 	}
 

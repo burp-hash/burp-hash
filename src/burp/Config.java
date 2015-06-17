@@ -14,7 +14,7 @@ import java.util.Base64;
  */
 class Config implements Serializable {
 	private static final long serialVersionUID = 1L;
-	private static final String version = "0.01";
+	private static final String version = "0.1";
 	private transient IBurpExtenderCallbacks callbacks;
 	private transient PrintWriter stdErr;
 	private transient PrintWriter stdOut;
@@ -25,6 +25,7 @@ class Config implements Serializable {
 	public boolean isSha256Enabled = true;
 	public boolean isSha384Enabled = false;
 	public boolean isSha512Enabled = false;
+	public boolean reportHashesOnly = true;
 
 	private Config(IBurpExtenderCallbacks c) {
 		callbacks = c;

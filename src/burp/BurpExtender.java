@@ -32,7 +32,11 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		stdOut = new PrintWriter(callbacks.getStdout(), true);
 		callbacks.setExtensionName(extensionName);
 		callbacks.registerScannerCheck(this); // register with Burp as a scanner
-
+		LoadConfig();
+	}
+	
+	private void LoadConfig()
+	{
 		try 
 		{
 			config = Config.load(callbacks); // load configuration
@@ -57,58 +61,79 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	{
 		return null; // doActiveScan is required but not used
 	}
+	
+	private HashRecord FindRegex(String s, Pattern pattern, String algorithm)
+	{
+		HashRecord _rec = new HashRecord();
+		Matcher matcher = pattern.matcher(s);
+		while (matcher.find())
+		{
+			//stdOut.println("Found: " + matcher.group());
+			_rec.found = true;
+			_rec.markers.add(new int[] { matcher.start(), matcher.end() });
+			_rec.record = matcher.group();
+			_rec.algorithm = algorithm;
+		}
+		return _rec;
+	}
 		
 	private List<Issue> FindHashes(String s, IHttpRequestResponse baseRequestResponse, SearchType searchType)
 	{
-		List<Issue> issues = new ArrayList<>();
-		List<String> hashes = new ArrayList<String>();
+		List<HashRecord> hashes = new ArrayList<HashRecord>();
 		for(HashAlgorithm hashAlgorithm : hashAlgorithms)
 		{
-			Matcher matcher = hashAlgorithm.pattern.matcher(s);
-			while (matcher.find())
+			HashRecord result = FindRegex(s, hashAlgorithm.pattern, hashAlgorithm.name);
+			if (result.found)
 			{
 				boolean found = false;
-				for (String hash : hashes)
+				for (HashRecord hash : hashes)
 				{
-					if (hash.toLowerCase().contains(matcher.group().toLowerCase()))
+					if (hash.getNormalizedRecord().contains(result.getNormalizedRecord()))
 					{ //to prevent shorter hashes (e.g. MD5) from being identified inside longer hashes (e.g. SHA-256)
 						found = true;
 						break;
 					}
 				}
 				if (found) continue;
-				hashes.add(matcher.group());
-				stdOut.println("Found " + hashAlgorithm.name + " hash: " + matcher.group() + " URL: " + helpers.analyzeRequest(baseRequestResponse).getUrl());
-				List<int[]> markers = new ArrayList<int[]>(); //TODO: Consider marking multiple instances of hashes found within a single request/response
-				markers.add(new int[] { matcher.start(), matcher.end() });				
-				IHttpRequestResponse[] reqres;
-				if (searchType.equals(searchType.REQUEST))
-				{ //apply markers to the request
-					reqres = new IHttpRequestResponse[] { callbacks.applyMarkers(baseRequestResponse, markers, null) };
-				}
-				else
-				{ //apply markers to the response
-					reqres = new IHttpRequestResponse[] { callbacks.applyMarkers(baseRequestResponse, null, markers) };
-				}
-				HashIssueText issueText = new HashIssueText(hashAlgorithm.name, matcher.group(), searchType);
-				Issue issue = new Issue(
-		                baseRequestResponse.getHttpService(),
-		                helpers.analyzeRequest(baseRequestResponse).getUrl(), 	
-		                reqres, 
-		                issueText.Name,
-		                issueText.Details,
-		                issueText.Severity,
-		                issueText.Confidence,
-		                issueText.RemediationDetails,
-		                issueText.Background,
-		                issueText.RemediationBackground);
-				issues.add(issue);
+				hashes.add(result);
+				stdOut.println("Found " + hashAlgorithm.name + " hash: " + result.record + " URL: " + helpers.analyzeRequest(baseRequestResponse).getUrl());
 			}
 		}
 		//TODO: Persist hashes
-		return issues;
+		return CreateIssues(hashes, baseRequestResponse, searchType);
 	}
 	
+	private List<Issue> CreateIssues(List<HashRecord> hashes, IHttpRequestResponse baseRequestResponse, SearchType searchType)
+	{
+		List<Issue> issues = new ArrayList<>();
+		for(HashRecord hash : hashes)
+		{
+			IHttpRequestResponse[] message;
+			if (searchType.equals(searchType.REQUEST))
+			{ //apply markers to the request
+				message = new IHttpRequestResponse[] { callbacks.applyMarkers(baseRequestResponse, hash.markers, null) };
+			}
+			else
+			{ //apply markers to the response
+				message = new IHttpRequestResponse[] { callbacks.applyMarkers(baseRequestResponse, null, hash.markers) };
+			}
+			HashIssueText issueText = new HashIssueText(hash.algorithm, hash.record, searchType);
+			Issue issue = new Issue(
+	                baseRequestResponse.getHttpService(),
+	                helpers.analyzeRequest(baseRequestResponse).getUrl(), 	
+	                message, 
+	                issueText.Name,
+	                issueText.Details,
+	                issueText.Severity,
+	                issueText.Confidence,
+	                issueText.RemediationDetails,
+	                issueText.Background,
+	                issueText.RemediationBackground);
+			issues.add(issue);
+		}
+		return issues;
+	}
+		
 	@Override
 	public List<IScanIssue> doPassiveScan(IHttpRequestResponse baseRequestResponse) 
 	{
@@ -220,5 +245,17 @@ class HashAlgorithm
 		this.charWidth = charWidth;
 		this.name = name;
 		this.pattern = Pattern.compile(String.format(hexRegex, charWidth));
+	}
+}
+
+class HashRecord
+{
+	boolean found = false;
+	List<int[]> markers = new ArrayList<int[]>();
+	String record = "";
+	String algorithm = "";
+	public String getNormalizedRecord()
+	{
+		return record.toLowerCase(); //TODO: normalize base64, upper/lower, h:e:x, 0xFF
 	}
 }

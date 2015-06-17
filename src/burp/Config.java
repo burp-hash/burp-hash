@@ -10,6 +10,7 @@ import java.util.Base64;
 
 /**
  * Manages settings for the extension.
+ * It's crude, but it works.
  */
 class Config implements Serializable {
 	private static final long serialVersionUID = 1L;

@@ -14,7 +14,6 @@ import java.util.Base64;
  */
 class Config implements Serializable {
 	private static final long serialVersionUID = 1L;
-	private static final String version = "0.2";
 	private transient IBurpExtenderCallbacks callbacks;
 	private transient PrintWriter stdErr;
 	private transient PrintWriter stdOut;
@@ -32,7 +31,6 @@ class Config implements Serializable {
 		stdErr = new PrintWriter(c.getStderr(), true);
 		stdOut = new PrintWriter(c.getStdout(), true);
 		stdOut.println("No saved settings found — using defaults.");
-		stdOut.println("Version: " + version);
 	}
 
 	public static Config load(IBurpExtenderCallbacks c) throws Exception {

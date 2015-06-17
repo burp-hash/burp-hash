@@ -70,16 +70,48 @@ public class BurpExtender implements IBurpExtender, IScannerCheck {
 			IScannerInsertionPoint insertionPoint) {
 		return null;
 	}
-
+	
+	public boolean isHash(String s)
+	{
+		//stdOut.println("isHash(" + s + ");");
+		if (s.equals("tim"))
+		{
+			stdOut.println("HASH");
+			return true;
+		}
+		else
+		{
+			//stdOut.println("FALSE");
+			return false;
+		}
+	}
+	
 	@Override
-	public List<IScanIssue> doPassiveScan(
-			IHttpRequestResponse baseRequestResponse) {
+	public List<IScanIssue> doPassiveScan(IHttpRequestResponse baseRequestResponse) {
 		// TODO: implement method - this is where the real action begins
+		// report the issue
+        List<IScanIssue> issues = new ArrayList<>();
 		List<Item> items = new ArrayList<>();
 		IRequestInfo req = this.helpers.analyzeRequest(baseRequestResponse);
 		List<IParameter> params = req.getParameters();
 		for (IParameter param : params) {
-			items.add(new Item(param));
+			//stdOut.println("param: " + param.getValue());
+			if (isHash(param.getValue()))
+			{
+				Issue issue = new Issue(
+	                    baseRequestResponse.getHttpService(),
+	                    helpers.analyzeRequest(baseRequestResponse).getUrl(), 	
+	                    new IHttpRequestResponse[] { callbacks.applyMarkers(baseRequestResponse, null, null) }, 
+	                    HashIssueText.Name,
+	                    HashIssueText.getDetails(param.getValue()),
+	                    HashIssueText.Severity,
+	                    HashIssueText.Confidence,
+	                    HashIssueText.RemediationDetails,
+	                    HashIssueText.Background,
+	                    HashIssueText.RemediationBackground);
+				issues.add(issue);
+				items.add(new Item(param));
+			}
 		}
 		IResponseInfo resp = this.helpers.analyzeResponse(baseRequestResponse
 				.getResponse());
@@ -88,21 +120,38 @@ public class BurpExtender implements IBurpExtender, IScannerCheck {
 			items.add(new Item(cookie));
 		}
 		// this.stdOut.println("Items stored: " + items.size());
-		return null;
+		stdOut.println("Issues collected: " + issues.size());
+		for (IScanIssue issue : issues) {
+			stdOut.println("Issue URL: " + issue.getIssueName() + " " + issue.getUrl());
+		}
+		return issues;
 	}
 
 	@Override
-	public int consolidateDuplicateIssues(IScanIssue existingIssue,
-			IScanIssue newIssue) {
-		if (existingIssue.getIssueDetail() == newIssue.getIssueDetail()) {
+	public int consolidateDuplicateIssues(IScanIssue existingIssue, IScanIssue newIssue) {
+		return 0; //TODO: for now, no consolidation
+		/*if (existingIssue.getIssueDetail() == newIssue.getIssueDetail()) {
 			return -1; // discard new issue
 		} else {
 			return 0; // use both issues
-		}
+		}*/
 	}
 
 	private Object[] generateHashes() {
 		// TODO: only generate hashes that are enabled in config
 		return null;
 	}
+}
+
+class HashIssueText {
+	public static final String Name = "Hash Discovered";
+	public static final String getDetails (String param)
+	{
+		return "The server response contains what appears to be a hashed value: " + param + ".";
+	}
+	public static final String Severity = "Information";
+	public static final String Confidence = "Tentative";
+	public static final String RemediationDetails = "TBD";
+	public static final String Background = "TBD";
+	public static final String RemediationBackground = "TBD";
 }

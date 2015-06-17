@@ -13,7 +13,7 @@ import java.util.regex.Matcher;
 
 public class BurpExtender implements IBurpExtender, IScannerCheck 
 {
-	private static final String extensionName = "burp-hash";
+	public static final String extensionName = "burp-hash";
 	private static Map<String, String> hashdb = new ConcurrentHashMap<>();
 	private static List<HashAlgorithm> hashAlgorithms = new ArrayList<HashAlgorithm>();
 	private IBurpExtenderCallbacks callbacks;
@@ -21,7 +21,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	private PrintWriter stdErr;
 	private PrintWriter stdOut;
 	private Config config;
-	private enum SearchType { REQUEST, RESPONSE };
+	public enum SearchType { REQUEST, RESPONSE };
 
 	@Override
 	public void registerExtenderCallbacks(final IBurpExtenderCallbacks c) 
@@ -70,10 +70,8 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 				boolean found = false;
 				for (String hash : hashes)
 				{
-					stdOut.println("Old: " + hash + " new: " + matcher.group());
 					if (hash.toLowerCase().contains(matcher.group().toLowerCase()))
-					{
-						stdOut.println("Collision!");
+					{ //to prevent shorter hashes (e.g. MD5) from being identified inside longer hashes (e.g. SHA-256)
 						found = true;
 						break;
 					}
@@ -81,7 +79,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 				if (found) continue;
 				hashes.add(matcher.group());
 				stdOut.println("Found " + hashAlgorithm.name + " hash: " + matcher.group() + " URL: " + helpers.analyzeRequest(baseRequestResponse).getUrl());
-				List<int[]> markers = new ArrayList<int[]>();
+				List<int[]> markers = new ArrayList<int[]>(); //TODO: Consider marking multiple instances of hashes found within a single request/response
 				markers.add(new int[] { matcher.start(), matcher.end() });				
 				IHttpRequestResponse[] reqres;
 				if (searchType.equals(searchType.REQUEST))
@@ -92,17 +90,18 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 				{ //apply markers to the response
 					reqres = new IHttpRequestResponse[] { callbacks.applyMarkers(baseRequestResponse, null, markers) };
 				}
+				HashIssueText issueText = new HashIssueText(hashAlgorithm.name, matcher.group(), searchType);
 				Issue issue = new Issue(
 		                baseRequestResponse.getHttpService(),
 		                helpers.analyzeRequest(baseRequestResponse).getUrl(), 	
 		                reqres, 
-		                HashIssueText.getName(hashAlgorithm.name),
-		                HashIssueText.getDetails(hashAlgorithm.name, matcher.group()),
-		                HashIssueText.Severity,
-		                HashIssueText.Confidence,
-		                HashIssueText.RemediationDetails,
-		                HashIssueText.Background,
-		                HashIssueText.RemediationBackground);
+		                issueText.Name,
+		                issueText.Details,
+		                issueText.Severity,
+		                issueText.Confidence,
+		                issueText.RemediationDetails,
+		                issueText.Background,
+		                issueText.RemediationBackground);
 				issues.add(issue);
 			}
 		}
@@ -139,7 +138,10 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			}
 			// this.stdOut.println("Items stored: " + items.size());
 		}
-		stdOut.println("Issues collected: " + issues.size());
+		if (issues.size() > 0)
+		{
+			stdOut.println("Added " + issues.size() + " issues.");
+		}
 		for (IScanIssue issue : issues) 
 		{
 			stdOut.println("Issue URL: " + issue.getIssueName() + " " + issue.getUrl());
@@ -150,12 +152,11 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	@Override
 	public int consolidateDuplicateIssues(IScanIssue existingIssue, IScanIssue newIssue) 
 	{
-		return 0; //TODO: for now, no consolidation
-		/*if (existingIssue.getIssueDetail() == newIssue.getIssueDetail()) {
+		if (existingIssue.getIssueDetail() == newIssue.getIssueDetail()) {
 			return -1; // discard new issue
 		} else {
 			return 0; // use both issues
-		}*/
+		}
 	}
 
 	private Object[] generateHashes() 
@@ -167,19 +168,39 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 
 class HashIssueText 
 {
-	public static final String getName (String algorithm)
+	public HashIssueText(String algorithm, String param, BurpExtender.SearchType searchType)
 	{
-		return algorithm + " Hash Discovered";
-	}
-	public static final String getDetails (String algorithm, String param)
-	{
-		return "The server response contains what appears to be a " + algorithm + " hashed value: " + param + ".";
-	}
-	public static final String Severity = "Information";
-	public static final String Confidence = "Tentative";
-	public static final String RemediationDetails = "TBD";
-	public static final String Background = "TBD";
-	public static final String RemediationBackground = "TBD";
+		Name = algorithm + " Hash Discovered";
+		String source = "server response";
+		if (searchType.equals(BurpExtender.SearchType.REQUEST))
+		{
+			source = "request";
+		}
+		Details = "The " + source + " contains what appears to be a " + algorithm + " hashed value: " + param + ".";
+		Confidence = "Tentative";
+		RemediationBackground = "This was found by the " + BurpExtender.extensionName + " extension."; //TODO: add github URL to project in this message
+		if (algorithm.equals("MD5") || algorithm.equals("SHA-1"))
+		{
+			Severity = "Medium";
+			if (algorithm.equals("MD5"))
+			{
+				Severity = "High";
+			}
+			RemediationDetails = "Consider upgrading to a stronger cryptographic hash algorithm, such as SHA-256.";
+			Background = "This cryptographic algorithm is considered to be weak and should be phased out.\n\n" +
+					"The presence of a cryptographic hash may be of interest to a penetration tester.  " +
+					"This may assist the tester in locating vectors to bypass access controls.";
+		}
+		else
+		{
+			Severity = "Information";
+			RemediationDetails = "No remediation may be necessary. This is purely informational.";
+			Background = "The presence of a cryptographic hash may be of interest to a penetration tester.  " +
+					"This may assist the tester in locating vectors to bypass access controls.";
+		}
+		
+	}	
+	public static String Name, Details, Severity, Confidence, RemediationDetails, Background, RemediationBackground;
 }
 
 class HashAlgorithm
@@ -187,7 +208,12 @@ class HashAlgorithm
 	public int charWidth;
 	public String name;
 	public Pattern pattern;
-	private static final String hexRegex = "([a-f0-9]{%s})";
+	private static final String hexRegex = "([a-f0-9]{%s})"; 
+	//TODO: Regex will flag on longer hex values - fix this.
+	//TODO: Add support for Base64 encoding
+	//TODO: Add support for f0:a3:cd style encoding
+	//TODO: Add support for 0xFF style encoding
+	//TODO: validate upper and lower case
 	
 	public HashAlgorithm(int charWidth, String name)
 	{

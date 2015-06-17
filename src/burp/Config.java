@@ -14,7 +14,7 @@ import java.util.Base64;
  */
 class Config implements Serializable {
 	private static final long serialVersionUID = 1L;
-	private static final String version = "0.1";
+	private static final String version = "0.2";
 	private transient IBurpExtenderCallbacks callbacks;
 	private transient PrintWriter stdErr;
 	private transient PrintWriter stdOut;

@@ -97,7 +97,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 
 			try
 			{
-				//sadly, the base64 regex by itself is ineffective
+				//sadly, the base64 regex by itself is ineffective (false positives)
 				//so we need to try to decode and catch exceptions instead
 				String b64decoded = Utilities.byteArrayToHex(Base64.getDecoder().decode(urldecoded));
 				matcher = pattern.matcher(b64decoded);
@@ -147,11 +147,16 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 				}
 			}
 		}
-		//TODO: Persist hashes
-		return CreateIssues(hashes, baseRequestResponse, searchType);
+		SaveHashes(hashes);
+		return CreateHashDiscoveredIssues(hashes, baseRequestResponse, searchType);
 	}
 	
-	private List<Issue> CreateIssues(List<HashRecord> hashes, IHttpRequestResponse baseRequestResponse, SearchType searchType)
+	private void SaveHashes(List<HashRecord> hashes)
+	{
+		//TODO: Persist hashes
+	}
+	
+	private List<Issue> CreateHashDiscoveredIssues(List<HashRecord> hashes, IHttpRequestResponse baseRequestResponse, SearchType searchType)
 	{
 		List<Issue> issues = new ArrayList<>();
 		for(HashRecord hash : hashes)
@@ -165,7 +170,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			{ //apply markers to the response
 				message = new IHttpRequestResponse[] { callbacks.applyMarkers(baseRequestResponse, null, hash.markers) };
 			}
-			HashIssueText issueText = new HashIssueText(hash, searchType);
+			HashDiscoveredIssueText issueText = new HashDiscoveredIssueText(hash, searchType);
 			Issue issue = new Issue(
 	                baseRequestResponse.getHttpService(),
 	                helpers.analyzeRequest(baseRequestResponse).getUrl(), 	

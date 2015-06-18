@@ -27,16 +27,19 @@ class Config implements Serializable {
 	public boolean isSha512Enabled = false;
 	public boolean reportHashesOnly = true;
 
-	private Config(IBurpExtenderCallbacks c) {
+	private Config(IBurpExtenderCallbacks c) 
+	{
 		callbacks = c;
 		stdErr = new PrintWriter(c.getStderr(), true);
 		stdOut = new PrintWriter(c.getStdout(), true);
 		stdOut.println("No saved settings found — using defaults.");
 	}
 
-	public static Config load(IBurpExtenderCallbacks c) throws Exception {
+	public static Config load(IBurpExtenderCallbacks c) throws Exception 
+	{
 		String encodedConfig = c.loadExtensionSetting("burp-hash");
-		if (encodedConfig == null) {
+		if (encodedConfig == null) 
+		{
 			return new Config(c);
 		}
 		byte[] decodedConfig = Base64.getDecoder().decode(encodedConfig);
@@ -50,7 +53,8 @@ class Config implements Serializable {
 		return cfg;
 	}
 
-	public void save() throws Exception {
+	public void save() throws Exception 
+	{
 		ByteArrayOutputStream b = new ByteArrayOutputStream();
 		ObjectOutputStream out = new ObjectOutputStream(b);
 		out.writeObject(this);

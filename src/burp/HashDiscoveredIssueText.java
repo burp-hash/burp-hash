@@ -1,8 +1,8 @@
 package burp;
 
-public class HashIssueText 
+public class HashDiscoveredIssueText 
 {
-	public HashIssueText(HashRecord hash, SearchType searchType)
+	public HashDiscoveredIssueText(HashRecord hash, SearchType searchType)
 	{
 		Name = hash.algorithm + " Hash Discovered";
 		String source = "server response";

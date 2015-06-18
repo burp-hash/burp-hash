@@ -18,6 +18,7 @@ class Config implements Serializable {
 	private transient PrintWriter stdErr;
 	private transient PrintWriter stdOut;
 	// variables below are the extension settings
+	//TODO: convert the list below to use an EnumSet with the <HashAlgorithmName> enum:
 	public boolean isMd5Enabled = true;
 	public boolean isSha1Enabled = true;
 	public boolean isSha224Enabled = false;

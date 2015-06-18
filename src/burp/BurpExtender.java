@@ -24,7 +24,6 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	private PrintWriter stdErr;
 	private PrintWriter stdOut;
 	private Config config;
-	public enum SearchType { REQUEST, RESPONSE };
 	public Pattern b64 = Pattern.compile("[a-zA-Z0-9+/%]+={0,2}"); //added % for URL encoded B64
 	//TODO: Use this to determine which hash algos to use on params for hash guessing:
 	public static EnumSet<HashAlgorithmName> hashTracker = EnumSet.noneOf(HashAlgorithmName.class); 
@@ -104,7 +103,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 				matcher = pattern.matcher(b64decoded);
 				if (matcher.matches())
 				{
-					stdOut.println("Base64 Match: " + urldecoded + " (" + b64decoded + ")");
+					stdOut.println("Base64 Match: " + urldecoded + " <<" + b64decoded + ">>");
 					HashRecord hash = new HashRecord();
 					hash.found = true;
 					hash.markers.add(new int[] { b64matcher.start(), b64matcher.end() }); 
@@ -237,102 +236,5 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	{
 		// TODO: only generate hashes that are enabled in config
 		return null;
-	}
-}
-
-class HashIssueText 
-{
-	public HashIssueText(HashRecord hash, BurpExtender.SearchType searchType)
-	{
-		Name = hash.algorithm + " Hash Discovered";
-		String source = "server response";
-		if (searchType.equals(BurpExtender.SearchType.REQUEST))
-		{
-			source = "request";
-		}
-		Details = "The " + source + " contains what appears to be a <b>" + hash.algorithm + "</b> hashed value:\n<ul><li>" + hash.getNormalizedRecord() + "</li></ul>";
-		if (!hash.encodingType.equals(EncodingType.Hex))
-		{
-			Details += "<br>The hash was discovered encoded as:\n<ul><li>" + hash.record + "</li></ul>";
-		}
-		Confidence = "Tentative";
-		RemediationBackground = "This was found by the " + BurpExtender.extensionName + " extension."; //TODO: add github URL to project in this message
-		if (hash.algorithm.equals("MD5") || hash.algorithm.equals("SHA-1"))
-		{
-			Severity = "Medium";
-			if (hash.algorithm.equals("MD5"))
-			{
-				Severity = "High";
-			}
-			RemediationDetails = "Consider upgrading to a stronger cryptographic hash algorithm, such as SHA-256.";
-			Background = "This cryptographic algorithm is considered to be weak and should be phased out.\n\n" +
-					"The presence of a cryptographic hash may be of interest to a penetration tester.  " +
-					"This may assist the tester in locating vectors to bypass access controls.";
-		}
-		else
-		{
-			Severity = "Information";
-			RemediationDetails = "No remediation may be necessary. This is purely informational.";
-			Background = "The presence of a cryptographic hash may be of interest to a penetration tester.  " +
-					"This may assist the tester in locating vectors to bypass access controls.";
-		}
-		
-	}	
-	public static String Name, Details, Severity, Confidence, RemediationDetails, Background, RemediationBackground;
-}
-
-class HashAlgorithm
-{
-	public int charWidth;
-	public HashAlgorithmName name;
-	public Pattern pattern;
-	private static final String hexRegex = "([a-fA-F0-9]{%s})";
-	
-	public HashAlgorithm(int charWidth, HashAlgorithmName name)
-	{
-		this.charWidth = charWidth;
-		this.name = name;
-		this.pattern = Pattern.compile(String.format(hexRegex, charWidth));
-	}
-}
-
-//enum HashAlgorithmName { MD5, SHA1, SHA224, SHA256, SHA384, SHA512 };
-enum EncodingType { Hex, Base64 };
-
-class Utilities
-{
-	public static String byteArrayToHex(byte[] bytes) 
-	{
-		   StringBuilder sb = new StringBuilder(bytes.length * 2);
-		   for(byte b: bytes)
-		      sb.append(String.format("%02x", b & 0xff));
-		   return sb.toString();
-	}
-}
-
-class HashRecord
-{
-	boolean found = false;
-	List<int[]> markers = new ArrayList<int[]>();
-	String record = "";
-	HashAlgorithmName algorithm;
-	EncodingType encodingType;
-
-	public String getNormalizedRecord() //TODO: normalize h:e:x, 0xFF
-	{
-		if (encodingType.equals(EncodingType.Base64))
-		{
-			return Utilities.byteArrayToHex(Base64.getDecoder().decode(record)).toLowerCase();
-		}
-		return record.toLowerCase(); 
-	}
-	
-	public String toString()
-	{
-		if (!encodingType.equals(EncodingType.Hex))
-		{
-			return algorithm + " Hash " + record + " (" + getNormalizedRecord() + ")";
-		}
-		return algorithm + " Hash " + record;
 	}
 }

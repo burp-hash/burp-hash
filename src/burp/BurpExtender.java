@@ -10,6 +10,9 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
+import java.util.Base64;
+import java.net.URLDecoder;
+import java.util.EnumSet;
 
 public class BurpExtender implements IBurpExtender, IScannerCheck 
 {
@@ -22,6 +25,9 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	private PrintWriter stdOut;
 	private Config config;
 	public enum SearchType { REQUEST, RESPONSE };
+	public Pattern b64 = Pattern.compile("[a-zA-Z0-9+/%]+={0,2}"); //added % for URL encoded B64
+	//TODO: Use this to determine which hash algos to use on params for hash guessing:
+	public static EnumSet<HashAlgorithmName> hashTracker = EnumSet.noneOf(HashAlgorithmName.class); 
 
 	@Override
 	public void registerExtenderCallbacks(final IBurpExtenderCallbacks c) 
@@ -48,12 +54,12 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		}
 
 		//Build in reverse order (largest first) for searching:
-		if(config.isSha512Enabled) hashAlgorithms.add(new HashAlgorithm(128, "SHA-512"));
-		if(config.isSha384Enabled) hashAlgorithms.add(new HashAlgorithm(96, "SHA-384"));
-		if(config.isSha256Enabled) hashAlgorithms.add(new HashAlgorithm(64, "SHA-256"));
-		if(config.isSha224Enabled) hashAlgorithms.add(new HashAlgorithm(56, "SHA-224"));
-		if(config.isSha1Enabled) hashAlgorithms.add(new HashAlgorithm(40, "SHA-1"));
-		if(config.isMd5Enabled) hashAlgorithms.add(new HashAlgorithm(32, "MD5"));
+		if(config.isSha512Enabled) hashAlgorithms.add(new HashAlgorithm(128, HashAlgorithmName.SHA512));
+		if(config.isSha384Enabled) hashAlgorithms.add(new HashAlgorithm(96, HashAlgorithmName.SHA384));
+		if(config.isSha256Enabled) hashAlgorithms.add(new HashAlgorithm(64, HashAlgorithmName.SHA256));
+		if(config.isSha224Enabled) hashAlgorithms.add(new HashAlgorithm(56, HashAlgorithmName.SHA224));
+		if(config.isSha1Enabled) hashAlgorithms.add(new HashAlgorithm(40, HashAlgorithmName.SHA1));
+		if(config.isMd5Enabled) hashAlgorithms.add(new HashAlgorithm(32, HashAlgorithmName.MD5));
 	}
 
 	@Override
@@ -62,19 +68,58 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		return null; // doActiveScan is required but not used
 	}
 	
-	private HashRecord FindRegex(String s, Pattern pattern, String algorithm)
+	private List<HashRecord> FindRegex(String s, Pattern pattern, HashAlgorithmName algorithm)
 	{
-		HashRecord _rec = new HashRecord();
+		//TODO: Regex will flag on longer hex values - fix this.
+		//TODO: Add support for f0:a3:cd style encoding
+		//TODO: Add support for 0xFF style encoding
+		List<HashRecord> hashes = new ArrayList<HashRecord>();
 		Matcher matcher = pattern.matcher(s);
 		while (matcher.find())
 		{
-			//stdOut.println("Found: " + matcher.group());
-			_rec.found = true;
-			_rec.markers.add(new int[] { matcher.start(), matcher.end() });
-			_rec.record = matcher.group();
-			_rec.algorithm = algorithm;
+			HashRecord hash = new HashRecord();
+			hash.found = true;
+			hash.markers.add(new int[] { matcher.start(), matcher.end() });
+			hash.record = matcher.group();
+			hash.algorithm = algorithm;
+			hash.encodingType = EncodingType.Hex;
+			hashes.add(hash);
+			hashTracker.add(algorithm);
 		}
-		return _rec;
+		Matcher b64matcher = b64.matcher(s);
+		while (b64matcher.find())
+		{
+			String urldecoded = b64matcher.group();
+			try
+			{
+				urldecoded = URLDecoder.decode(b64matcher.group(), "UTF-8");
+			}
+			catch (java.io.UnsupportedEncodingException uee) { }
+
+			try
+			{
+				//sadly, the base64 regex by itself is ineffective
+				//so we need to try to decode and catch exceptions instead
+				String b64decoded = Utilities.byteArrayToHex(Base64.getDecoder().decode(urldecoded));
+				matcher = pattern.matcher(b64decoded);
+				if (matcher.matches())
+				{
+					stdOut.println("Base64 Match: " + urldecoded + " (" + b64decoded + ")");
+					HashRecord hash = new HashRecord();
+					hash.found = true;
+					hash.markers.add(new int[] { b64matcher.start(), b64matcher.end() }); 
+					hash.record = urldecoded;
+					hash.algorithm = algorithm;
+					hash.encodingType = EncodingType.Base64;
+					hashes.add(hash);
+					hashTracker.add(algorithm);
+				}
+			}
+			catch (IllegalArgumentException iae)
+			{ }
+		}
+
+		return hashes;
 	}
 		
 	private List<Issue> FindHashes(String s, IHttpRequestResponse baseRequestResponse, SearchType searchType)
@@ -82,21 +127,25 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		List<HashRecord> hashes = new ArrayList<HashRecord>();
 		for(HashAlgorithm hashAlgorithm : hashAlgorithms)
 		{
-			HashRecord result = FindRegex(s, hashAlgorithm.pattern, hashAlgorithm.name);
-			if (result.found)
+			List<HashRecord> results = FindRegex(s, hashAlgorithm.pattern, hashAlgorithm.name);
+			for(HashRecord result : results)
 			{
-				boolean found = false;
-				for (HashRecord hash : hashes)
+				if (result.found)
 				{
-					if (hash.getNormalizedRecord().contains(result.getNormalizedRecord()))
-					{ //to prevent shorter hashes (e.g. MD5) from being identified inside longer hashes (e.g. SHA-256)
-						found = true;
-						break;
+					boolean found = false;
+					for (HashRecord hash : hashes)
+					{
+						if (hash.getNormalizedRecord().contains(result.getNormalizedRecord()) &&
+								!hash.getNormalizedRecord().equals(result.getNormalizedRecord()))
+						{ //to prevent shorter hashes (e.g. MD5) from being identified inside longer hashes (e.g. SHA-256)
+							found = true;
+							break;
+						}
 					}
+					if (found) continue;
+					hashes.add(result);
+					stdOut.println("Found " + hashAlgorithm.name + " hash: " + result.record + " URL: " + helpers.analyzeRequest(baseRequestResponse).getUrl());
 				}
-				if (found) continue;
-				hashes.add(result);
-				stdOut.println("Found " + hashAlgorithm.name + " hash: " + result.record + " URL: " + helpers.analyzeRequest(baseRequestResponse).getUrl());
 			}
 		}
 		//TODO: Persist hashes
@@ -117,7 +166,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			{ //apply markers to the response
 				message = new IHttpRequestResponse[] { callbacks.applyMarkers(baseRequestResponse, null, hash.markers) };
 			}
-			HashIssueText issueText = new HashIssueText(hash.algorithm, hash.record, searchType);
+			HashIssueText issueText = new HashIssueText(hash, searchType);
 			Issue issue = new Issue(
 	                baseRequestResponse.getHttpService(),
 	                helpers.analyzeRequest(baseRequestResponse).getUrl(), 	
@@ -193,21 +242,25 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 
 class HashIssueText 
 {
-	public HashIssueText(String algorithm, String param, BurpExtender.SearchType searchType)
+	public HashIssueText(HashRecord hash, BurpExtender.SearchType searchType)
 	{
-		Name = algorithm + " Hash Discovered";
+		Name = hash.algorithm + " Hash Discovered";
 		String source = "server response";
 		if (searchType.equals(BurpExtender.SearchType.REQUEST))
 		{
 			source = "request";
 		}
-		Details = "The " + source + " contains what appears to be a " + algorithm + " hashed value: " + param + ".";
+		Details = "The " + source + " contains what appears to be a <b>" + hash.algorithm + "</b> hashed value:\n<ul><li>" + hash.getNormalizedRecord() + "</li></ul>";
+		if (!hash.encodingType.equals(EncodingType.Hex))
+		{
+			Details += "<br>The hash was discovered encoded as:\n<ul><li>" + hash.record + "</li></ul>";
+		}
 		Confidence = "Tentative";
 		RemediationBackground = "This was found by the " + BurpExtender.extensionName + " extension."; //TODO: add github URL to project in this message
-		if (algorithm.equals("MD5") || algorithm.equals("SHA-1"))
+		if (hash.algorithm.equals("MD5") || hash.algorithm.equals("SHA-1"))
 		{
 			Severity = "Medium";
-			if (algorithm.equals("MD5"))
+			if (hash.algorithm.equals("MD5"))
 			{
 				Severity = "High";
 			}
@@ -231,20 +284,29 @@ class HashIssueText
 class HashAlgorithm
 {
 	public int charWidth;
-	public String name;
+	public HashAlgorithmName name;
 	public Pattern pattern;
-	private static final String hexRegex = "([a-f0-9]{%s})"; 
-	//TODO: Regex will flag on longer hex values - fix this.
-	//TODO: Add support for Base64 encoding
-	//TODO: Add support for f0:a3:cd style encoding
-	//TODO: Add support for 0xFF style encoding
-	//TODO: validate upper and lower case
+	private static final String hexRegex = "([a-fA-F0-9]{%s})";
 	
-	public HashAlgorithm(int charWidth, String name)
+	public HashAlgorithm(int charWidth, HashAlgorithmName name)
 	{
 		this.charWidth = charWidth;
 		this.name = name;
 		this.pattern = Pattern.compile(String.format(hexRegex, charWidth));
+	}
+}
+
+enum HashAlgorithmName { MD5, SHA1, SHA224, SHA256, SHA384, SHA512 };
+enum EncodingType { Hex, Base64 };
+
+class Utilities
+{
+	public static String byteArrayToHex(byte[] bytes) 
+	{
+		   StringBuilder sb = new StringBuilder(bytes.length * 2);
+		   for(byte b: bytes)
+		      sb.append(String.format("%02x", b & 0xff));
+		   return sb.toString();
 	}
 }
 
@@ -253,9 +315,24 @@ class HashRecord
 	boolean found = false;
 	List<int[]> markers = new ArrayList<int[]>();
 	String record = "";
-	String algorithm = "";
-	public String getNormalizedRecord()
+	HashAlgorithmName algorithm;
+	EncodingType encodingType;
+
+	public String getNormalizedRecord() //TODO: normalize h:e:x, 0xFF
 	{
-		return record.toLowerCase(); //TODO: normalize base64, upper/lower, h:e:x, 0xFF
+		if (encodingType.equals(EncodingType.Base64))
+		{
+			return Utilities.byteArrayToHex(Base64.getDecoder().decode(record)).toLowerCase();
+		}
+		return record.toLowerCase(); 
+	}
+	
+	public String toString()
+	{
+		if (!encodingType.equals(EncodingType.Hex))
+		{
+			return algorithm + " Hash " + record + " (" + getNormalizedRecord() + ")";
+		}
+		return algorithm + " Hash " + record;
 	}
 }

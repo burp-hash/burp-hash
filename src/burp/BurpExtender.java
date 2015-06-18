@@ -296,7 +296,7 @@ class HashAlgorithm
 	}
 }
 
-enum HashAlgorithmName { MD5, SHA1, SHA224, SHA256, SHA384, SHA512 };
+//enum HashAlgorithmName { MD5, SHA1, SHA224, SHA256, SHA384, SHA512 };
 enum EncodingType { Hex, Base64 };
 
 class Utilities

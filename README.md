@@ -7,3 +7,10 @@ Many applications will hash parameters such as ID numbers and email addresses fo
 ### Release
 
 We are pleased to announce burp-hash has been accepted for [Black Hat USA Arsenal 2015](https://www.blackhat.com/us-15/arsenal.html#burp-hash). Following the presentation at Black Hat, the software will be released to the public here on GitHub.
+
+
+### Created by
+
+Scott Johnson
+Tim Malcomvetter
+Matt South

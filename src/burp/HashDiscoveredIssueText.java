@@ -2,6 +2,8 @@ package burp;
 
 public class HashDiscoveredIssueText 
 {
+	public String Name, Details, Severity, Confidence, RemediationDetails, Background, RemediationBackground;
+
 	public HashDiscoveredIssueText(HashRecord hash, SearchType searchType)
 	{
 		Name = hash.algorithm + " Hash Discovered";
@@ -16,7 +18,9 @@ public class HashDiscoveredIssueText
 			Details += "<br>The hash was discovered encoded as:\n<ul><li>" + hash.record + "</li></ul>";
 		}
 		Confidence = "Tentative";
-		RemediationBackground = "This was found by the " + BurpExtender.extensionName + " extension."; //TODO: add github URL to project in this message
+		RemediationBackground = "This was found by the <a href=\""
+				+ BurpExtender.extensionUrl + "\">"
+				+ BurpExtender.extensionName + "</a> extension.";
 		if (hash.algorithm.equals(HashAlgorithmName.MD5) || hash.algorithm.equals(HashAlgorithmName.SHA1))
 		{
 			Severity = "Medium";
@@ -38,5 +42,4 @@ public class HashDiscoveredIssueText
 		}
 		
 	}	
-	public static String Name, Details, Severity, Confidence, RemediationDetails, Background, RemediationBackground;
 }

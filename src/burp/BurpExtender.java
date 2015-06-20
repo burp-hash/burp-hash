@@ -3,8 +3,6 @@ package burp;
 import java.io.PrintWriter;
 import java.security.MessageDigest;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -17,6 +15,7 @@ import java.util.EnumSet;
 public class BurpExtender implements IBurpExtender, IScannerCheck 
 {
 	public static final String extensionName = "burp-hash";
+	public static final String extensionUrl = "https://burp-hash.github.io/";
 	private static Map<String, String> hashdb = new ConcurrentHashMap<>();
 	private static List<HashAlgorithm> hashAlgorithms = new ArrayList<HashAlgorithm>();
 	private IBurpExtenderCallbacks callbacks;
@@ -162,7 +161,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		for(HashRecord hash : hashes)
 		{
 			IHttpRequestResponse[] message;
-			if (searchType.equals(searchType.REQUEST))
+			if (searchType.equals(SearchType.REQUEST))
 			{ //apply markers to the request
 				message = new IHttpRequestResponse[] { callbacks.applyMarkers(baseRequestResponse, hash.markers, null) };
 			}
@@ -208,6 +207,10 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			List<Item> items = new ArrayList<>();
 			IRequestInfo req = this.helpers.analyzeRequest(baseRequestResponse);
 			List<IParameter> params = req.getParameters();
+			for (IParameter param : params)
+			{
+				items.add(new Item(param));
+			}
 			IResponseInfo resp = this.helpers.analyzeResponse(baseRequestResponse.getResponse());
 			List<ICookie> cookies = resp.getCookies();
 			for (ICookie cookie : cookies) 

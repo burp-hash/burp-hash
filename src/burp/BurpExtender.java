@@ -196,6 +196,11 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		//TODO: Persist hashes
 	}
 	
+	private void SaveHashedParameters(List<Parameter> parameters)
+	{
+		//TODO: Persist hashed params
+	}
+	
 	private List<Issue> CreateHashDiscoveredIssues(List<HashRecord> hashes, IHttpRequestResponse baseRequestResponse, SearchType searchType)
 	{
 		List<Issue> issues = new ArrayList<>();
@@ -226,6 +231,58 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		}
 		return issues;
 	}
+	
+	private List<Item> GetCookieItems(List<ICookie> cookies)
+	{
+		List<Item> items = new ArrayList<>();
+		for (ICookie cookie : cookies) 
+		{
+			items.add(new Item(cookie));
+		}
+		return items;
+	}
+	
+	private List<Item> GetParameterItems(IHttpRequestResponse baseRequestResponse)
+	{
+		List<Item> items = new ArrayList<>();
+		IRequestInfo req = this.helpers.analyzeRequest(baseRequestResponse);
+		List<IParameter> params = req.getParameters();
+		//TODO: Need to find a way to get cookies from requests to include any client side created cookies. This fails to build:
+		//items.addAll(req.getCookies());
+		for (IParameter param : params)
+		{
+			items.add(new Item(param));
+		}
+		IResponseInfo resp = this.helpers.analyzeResponse(baseRequestResponse.getResponse());
+		items.addAll(GetCookieItems(resp.getCookies()));
+		// this.stdOut.println("Items stored: " + items.size());
+		return items;
+	}
+	
+	private List<Parameter> GenerateParameterHashes(List<Item> items)
+	{
+		List<Parameter> params = new ArrayList<>();
+		//TODO: create parameter objects with hashes based on observed hash types here
+		return params;
+	}
+	
+	private List<Issue> FindMatchingHashes(List<Parameter> params, List<HashRecord> hashes)
+	{
+		List<Issue> issues = new ArrayList<>();
+		//TODO: implement logic to compare hashed params with discovered hashes
+		return issues;
+	}
+	
+	//The parameter signature for this method can certainly change as we see fit, just patterning after the FindHashes() method:
+	private List<Issue> FindHashedParameters(String s, IHttpRequestResponse baseRequestResponse, SearchType searchType)
+	{
+		List<Issue> issues = new ArrayList<>();		
+		List<Item> items = GetParameterItems(baseRequestResponse);
+		List<Parameter> params = GenerateParameterHashes(items);
+		
+		
+		return issues;
+	}
 		
 	@Override
 	public List<IScanIssue> doPassiveScan(IHttpRequestResponse baseRequestResponse) 
@@ -244,17 +301,8 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		
 		if (!config.reportHashesOnly)
 		{
-			//TODO: This is where we should wire in the logic to check if any params match captured hashes
-			List<Item> items = new ArrayList<>();
-			IRequestInfo req = this.helpers.analyzeRequest(baseRequestResponse);
-			List<IParameter> params = req.getParameters();
-			IResponseInfo resp = this.helpers.analyzeResponse(baseRequestResponse.getResponse());
-			List<ICookie> cookies = resp.getCookies();
-			for (ICookie cookie : cookies) 
-			{
-				items.add(new Item(cookie));
-			}
-			// this.stdOut.println("Items stored: " + items.size());
+			issues.addAll(FindHashedParameters(request, baseRequestResponse, SearchType.REQUEST));
+			issues.addAll(FindHashedParameters(request, baseRequestResponse, SearchType.RESPONSE));
 		}
 		if (issues.size() > 0)
 		{

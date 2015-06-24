@@ -59,6 +59,9 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		if(config.isSha224Enabled) hashAlgorithms.add(new HashAlgorithm(56, HashAlgorithmName.SHA224));
 		if(config.isSha1Enabled) hashAlgorithms.add(new HashAlgorithm(40, HashAlgorithmName.SHA1));
 		if(config.isMd5Enabled) hashAlgorithms.add(new HashAlgorithm(32, HashAlgorithmName.MD5));
+		
+		LoadHashes();
+		LoadHashedParameters();
 	}
 
 	@Override
@@ -196,9 +199,19 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		//TODO: Persist hashes
 	}
 	
+	private void LoadHashes()
+	{
+		//TODO: Implement retrieving hashes from disk
+	}
+	
 	private void SaveHashedParameters(List<Parameter> parameters)
 	{
 		//TODO: Persist hashed params
+	}
+	
+	private void LoadHashedParameters()
+	{
+		//TODO: Implement retrieving hashed params from disk
 	}
 	
 	private List<Issue> CreateHashDiscoveredIssues(List<HashRecord> hashes, IHttpRequestResponse baseRequestResponse, SearchType searchType)

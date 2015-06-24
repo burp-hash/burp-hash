@@ -74,6 +74,19 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		//TODO: Add support for 0xFF style encoding
 		List<HashRecord> hashes = new ArrayList<HashRecord>();
 		Matcher matcher = pattern.matcher(s);
+		boolean isUrlEncoded = false;
+		String urlDecodedMessage = s;
+		try
+		{
+			urlDecodedMessage = URLDecoder.decode(s, "UTF-8");
+			if (!urlDecodedMessage.equals(s))
+			{
+				//stdOut.println("URL Encoding Detected");
+				isUrlEncoded = true;
+			}
+		}
+		catch (java.io.UnsupportedEncodingException uee) { }
+
 		while (matcher.find())
 		{
 			HashRecord hash = new HashRecord();
@@ -85,37 +98,64 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			hashes.add(hash);
 			hashTracker.add(algorithm);
 		}
-		Matcher b64matcher = b64.matcher(s);
+		Matcher b64matcher = b64.matcher(urlDecodedMessage); 
 		while (b64matcher.find())
 		{
-			String urldecoded = b64matcher.group();
+			String b64EncodedHash = b64matcher.group();
+			String urlDecodedHash = b64EncodedHash;
+			//TODO: Consider adding support for double-url encoded values
 			try
 			{
-				urldecoded = URLDecoder.decode(b64matcher.group(), "UTF-8");
-			}
-			catch (java.io.UnsupportedEncodingException uee) { }
-
-			try
-			{
-				//sadly, the base64 regex by itself is ineffective (false positives)
-				//so we need to try to decode and catch exceptions instead
-				String b64decoded = Utilities.byteArrayToHex(Base64.getDecoder().decode(urldecoded));
-				matcher = pattern.matcher(b64decoded);
-				if (matcher.matches())
+				//Hacky way to ensure the regex doesn't forget the trailing "==" signs:
+				//may have to adjust for URLencoding with the padding...
+				int padding = 0;
+				while (urlDecodedHash.length() % 4 != 0)
 				{
-					stdOut.println("Base64 Match: " + urldecoded + " <<" + b64decoded + ">>");
-					HashRecord hash = new HashRecord();
-					hash.found = true;
-					hash.markers.add(new int[] { b64matcher.start(), b64matcher.end() }); 
-					hash.record = urldecoded;
-					hash.algorithm = algorithm;
-					hash.encodingType = EncodingType.Base64;
-					hashes.add(hash);
-					hashTracker.add(algorithm);
+					padding++;
+					urlDecodedHash += "=";
+					if (isUrlEncoded)
+					{
+//						b64EncodedHash += "%3d"; //pad the orig so we can find the proper issue markers
+					}
+					if (padding == 3)
+					{
+						//stdErr.println("Oops? Padding == 3: " + urlDecodedHash); //TODO: research b64 encoding padding - don't think 3 "=" are allowed
+					}
+				}
+				if (urlDecodedMessage.contains(urlDecodedHash)) //this will fail if double url encoded
+				{
+					//sadly, the base64 regex by itself is ineffective (false positives)
+					//so we need to try to decode and catch exceptions instead
+					String hexHash = Utilities.byteArrayToHex(Base64.getDecoder().decode(urlDecodedHash));
+					matcher = pattern.matcher(hexHash);
+					if (matcher.matches())
+					{
+						stdOut.println("Base64 Match: " + urlDecodedHash + " <<" + hexHash + ">>");
+						HashRecord hash = new HashRecord();
+						hash.found = true;	
+						if (isUrlEncoded)
+						{
+							b64EncodedHash = b64EncodedHash.replace("=", "%3D");
+							int i = s.indexOf(b64EncodedHash);
+							hash.markers.add(new int[] { i, (i + b64EncodedHash.length()) });
+							stdOut.println("Markers: " + i + " " + (i + b64EncodedHash.length()));
+						}
+						else
+						{
+							hash.markers.add(new int[] { b64matcher.start(), (b64matcher.end() + padding) }); 
+						}
+						hash.record = urlDecodedHash; //TODO: Consider persisting UrlEncoded version if it was found that way
+						hash.algorithm = algorithm;
+						hash.encodingType = EncodingType.Base64;
+						hashes.add(hash);
+						hashTracker.add(algorithm);
+					}
 				}
 			}
 			catch (IllegalArgumentException iae)
-			{ }
+			{
+				stdErr.println(iae);
+			}
 		}
 
 		return hashes;
@@ -222,7 +262,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		}
 		for (IScanIssue issue : issues) 
 		{
-			stdOut.println("Issue URL: " + issue.getIssueName() + " " + issue.getUrl());
+			stdOut.println("Begin Issue:\n" + issue.toString() + "\nEnd Issue");
 		}
 		return issues;
 	}
@@ -230,11 +270,12 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	@Override
 	public int consolidateDuplicateIssues(IScanIssue existingIssue, IScanIssue newIssue) 
 	{
-		if (existingIssue.getIssueDetail() == newIssue.getIssueDetail()) {
+		return 0;
+/*		if (existingIssue.getIssueDetail() == newIssue.getIssueDetail()) {
 			return -1; // discard new issue
 		} else {
 			return 0; // use both issues
-		}
+		}*/
 	}
 
 	private Object[] generateHashes() 

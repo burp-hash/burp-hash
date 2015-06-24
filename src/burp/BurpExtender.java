@@ -3,6 +3,8 @@ package burp;
 import java.io.PrintWriter;
 import java.security.MessageDigest;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -58,6 +60,10 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		if(config.isSha224Enabled) hashAlgorithms.add(new HashAlgorithm(56, HashAlgorithmName.SHA224));
 		if(config.isSha1Enabled) hashAlgorithms.add(new HashAlgorithm(40, HashAlgorithmName.SHA1));
 		if(config.isMd5Enabled) hashAlgorithms.add(new HashAlgorithm(32, HashAlgorithmName.MD5));
+		
+		//Load persisted hashes/parameters for resuming testing from a previous test:
+		LoadHashes();
+		LoadHashedParameters();
 	}
 
 	@Override
@@ -68,11 +74,24 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	
 	private List<HashRecord> FindRegex(String s, Pattern pattern, HashAlgorithmName algorithm)
 	{
-		//TODO: Regex will flag on longer hex values - fix this.
-		//TODO: Add support for f0:a3:cd style encoding
-		//TODO: Add support for 0xFF style encoding
+		//TODO: Regex will flag on longer hex values - fix this.  Update 6/24: haven't seen this repeated in awhile. Needs more testing to confirm.
+		//TODO: Add support for f0:a3:cd style encoding (Not MVP)
+		//TODO: Add support for 0xFF style encoding (Not MVP)
 		List<HashRecord> hashes = new ArrayList<HashRecord>();
 		Matcher matcher = pattern.matcher(s);
+		boolean isUrlEncoded = false;
+		String urlDecodedMessage = s;
+		try
+		{
+			urlDecodedMessage = URLDecoder.decode(s, "UTF-8");
+			if (!urlDecodedMessage.equals(s))
+			{
+				//stdOut.println("URL Encoding Detected");
+				isUrlEncoded = true;
+			}
+		}
+		catch (java.io.UnsupportedEncodingException uee) { }
+
 		while (matcher.find())
 		{
 			HashRecord hash = new HashRecord();
@@ -84,37 +103,66 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			hashes.add(hash);
 			hashTracker.add(algorithm);
 		}
-		Matcher b64matcher = b64.matcher(s);
+		Matcher b64matcher = b64.matcher(urlDecodedMessage); 
 		while (b64matcher.find())
 		{
-			String urldecoded = b64matcher.group();
+			String b64EncodedHash = b64matcher.group();
+			String urlDecodedHash = b64EncodedHash;
+			//TODO: Consider adding support for double-url encoded values (Not MVP)
 			try
 			{
-				urldecoded = URLDecoder.decode(b64matcher.group(), "UTF-8");
-			}
-			catch (java.io.UnsupportedEncodingException uee) { }
-
-			try
-			{
-				//sadly, the base64 regex by itself is ineffective (false positives)
-				//so we need to try to decode and catch exceptions instead
-				String b64decoded = Utilities.byteArrayToHex(Base64.getDecoder().decode(urldecoded));
-				matcher = pattern.matcher(b64decoded);
-				if (matcher.matches())
+				//Hacky way to ensure the regex doesn't forget the trailing "==" signs:
+				//may have to adjust for URLencoding with the padding...
+				int padding = 0;
+				while (urlDecodedHash.length() % 4 != 0)
 				{
-					stdOut.println("Base64 Match: " + urldecoded + " <<" + b64decoded + ">>");
-					HashRecord hash = new HashRecord();
-					hash.found = true;
-					hash.markers.add(new int[] { b64matcher.start(), b64matcher.end() }); 
-					hash.record = urldecoded;
-					hash.algorithm = algorithm;
-					hash.encodingType = EncodingType.Base64;
-					hashes.add(hash);
-					hashTracker.add(algorithm);
+					padding++;
+					urlDecodedHash += "=";
+					if (isUrlEncoded)
+					{
+						//TODO: I think I made this bit irrelevant with the new way I'm handling URL encoding:
+//						b64EncodedHash += "%3d"; //pad the orig so we can find the proper issue markers
+					}
+					if (padding == 3)
+					{
+						//TODO: research b64 encoding padding - don't think 3 "=" are allowed
+						//stdErr.println("Oops? Padding == 3: " + urlDecodedHash); 						
+					}
+				}
+				if (urlDecodedMessage.contains(urlDecodedHash)) //this will fail if double url encoded
+				{
+					//sadly, the base64 regex by itself is ineffective (false positives)
+					//so we need to try to decode and catch exceptions instead
+					String hexHash = Utilities.byteArrayToHex(Base64.getDecoder().decode(urlDecodedHash));
+					matcher = pattern.matcher(hexHash);
+					if (matcher.matches())
+					{
+						stdOut.println("Base64 Match: " + urlDecodedHash + " <<" + hexHash + ">>");
+						HashRecord hash = new HashRecord();
+						hash.found = true;	
+						if (isUrlEncoded)
+						{
+							b64EncodedHash = b64EncodedHash.replace("=", "%3D");
+							int i = s.indexOf(b64EncodedHash);
+							hash.markers.add(new int[] { i, (i + b64EncodedHash.length()) });
+							stdOut.println("Markers: " + i + " " + (i + b64EncodedHash.length()));
+						}
+						else
+						{
+							hash.markers.add(new int[] { b64matcher.start(), (b64matcher.end() + padding) }); 
+						}
+						hash.record = urlDecodedHash; //TODO: Consider persisting UrlEncoded version if it was found that way
+						hash.algorithm = algorithm;
+						hash.encodingType = EncodingType.Base64;
+						hashes.add(hash);
+						hashTracker.add(algorithm);
+					}
 				}
 			}
 			catch (IllegalArgumentException iae)
-			{ }
+			{
+				stdErr.println(iae);
+			}
 		}
 
 		return hashes;
@@ -128,7 +176,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			List<HashRecord> results = FindRegex(s, hashAlgorithm.pattern, hashAlgorithm.name);
 			for(HashRecord result : results)
 			{
-				if (result.found)
+				if (result.found) //this check may be unnecessary now
 				{
 					boolean found = false;
 					for (HashRecord hash : hashes)
@@ -152,7 +200,22 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	
 	private void SaveHashes(List<HashRecord> hashes)
 	{
-		//TODO: Persist hashes
+		//TODO: Persist hashes later (MVP)
+	}
+	
+	private void LoadHashes()
+	{
+		//TODO: Implement retrieving hashes from disk later (MVP)
+	}
+	
+	private void SaveHashedParameters(List<Parameter> parameters)
+	{
+		//TODO: Persist hashed params later (MVP)
+	}
+	
+	private void LoadHashedParameters()
+	{
+		//TODO: Implement retrieving hashed params from disk later (MVP)
 	}
 	
 	private List<Issue> CreateHashDiscoveredIssues(List<HashRecord> hashes, IHttpRequestResponse baseRequestResponse, SearchType searchType)
@@ -185,11 +248,64 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		}
 		return issues;
 	}
+	
+	private List<Item> GetCookieItems(List<ICookie> cookies)
+	{
+		List<Item> items = new ArrayList<>();
+		for (ICookie cookie : cookies) 
+		{
+			items.add(new Item(cookie));
+		}
+		return items;
+	}
+	
+	private List<Item> GetParameterItems(IHttpRequestResponse baseRequestResponse)
+	{
+		List<Item> items = new ArrayList<>();
+		IRequestInfo req = this.helpers.analyzeRequest(baseRequestResponse);
+		List<IParameter> params = req.getParameters();
+		//TODO: Need to find a way to get cookies from requests to include any client side created cookies. This fails to build:
+		//items.addAll(req.getCookies());
+		for (IParameter param : params)
+		{
+			items.add(new Item(param));
+		}
+		IResponseInfo resp = this.helpers.analyzeResponse(baseRequestResponse.getResponse());
+		items.addAll(GetCookieItems(resp.getCookies()));
+		// this.stdOut.println("Items stored: " + items.size());
+		return items;
+	}
+	
+	private List<Parameter> GenerateParameterHashes(List<Item> items)
+	{
+		List<Parameter> params = new ArrayList<>();
+		//TODO: create parameter objects with hashes based on observed hash types (via the hashTracker) here
+		return params;
+	}
+	
+	private List<Issue> FindMatchingHashes(List<Parameter> params, List<HashRecord> hashes)
+	{
+		List<Issue> issues = new ArrayList<>();
+		//TODO: implement logic to compare hashed params with discovered hashes
+		return issues;
+	}
+	
+	//The parameter signature for this method can certainly change as we see fit, just patterning after the FindHashes() method:
+	private List<Issue> FindHashedParameters(String s, IHttpRequestResponse baseRequestResponse, SearchType searchType)
+	{
+		List<Issue> issues = new ArrayList<>();		
+		List<Item> items = GetParameterItems(baseRequestResponse);
+		List<Parameter> params = GenerateParameterHashes(items);
+		
+		
+		return issues;
+	}
 		
 	@Override
 	public List<IScanIssue> doPassiveScan(IHttpRequestResponse baseRequestResponse) 
 	{
-		// TODO: implement method - this is where the real action begins
+		// TODO: implement a filter for only requests/responses from in-scope domains (tie into burp target scope)
+		// no reason to be hashing every param of every other random URL, because that will likely cause performance issues
 		List<IScanIssue> issues = new ArrayList<>();
 		String request = "", response = "";
 		try 
@@ -203,21 +319,8 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		
 		if (!config.reportHashesOnly)
 		{
-			//TODO: This is where we should wire in the logic to check if any params match captured hashes
-			List<Item> items = new ArrayList<>();
-			IRequestInfo req = this.helpers.analyzeRequest(baseRequestResponse);
-			List<IParameter> params = req.getParameters();
-			for (IParameter param : params)
-			{
-				items.add(new Item(param));
-			}
-			IResponseInfo resp = this.helpers.analyzeResponse(baseRequestResponse.getResponse());
-			List<ICookie> cookies = resp.getCookies();
-			for (ICookie cookie : cookies) 
-			{
-				items.add(new Item(cookie));
-			}
-			// this.stdOut.println("Items stored: " + items.size());
+			issues.addAll(FindHashedParameters(request, baseRequestResponse, SearchType.REQUEST));
+			issues.addAll(FindHashedParameters(request, baseRequestResponse, SearchType.RESPONSE));
 		}
 		if (issues.size() > 0)
 		{
@@ -225,7 +328,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		}
 		for (IScanIssue issue : issues) 
 		{
-			stdOut.println("Issue URL: " + issue.getIssueName() + " " + issue.getUrl());
+			//stdOut.println("Begin Issue:\n" + issue.toString() + "\nEnd Issue");
 		}
 		return issues;
 	}
@@ -233,16 +336,12 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	@Override
 	public int consolidateDuplicateIssues(IScanIssue existingIssue, IScanIssue newIssue) 
 	{
-		if (existingIssue.getIssueDetail() == newIssue.getIssueDetail()) {
+		return 0;
+		//disabling the filtering for now, we may want this later:
+/*		if (existingIssue.getIssueDetail() == newIssue.getIssueDetail()) {
 			return -1; // discard new issue
 		} else {
 			return 0; // use both issues
-		}
-	}
-
-	private Object[] generateHashes() 
-	{
-		// TODO: only generate hashes that are enabled in config
-		return null;
+		}*/
 	}
 }

@@ -89,5 +89,12 @@ class Issue implements IScanIssue {
 	public IHttpService getHttpService() {
 		return this.httpService;
 	}
+	
+	public String toString()
+	{
+		return "Name: " + this.issueName + " URL: " + this.url + " Severity: " + this.severity + " Confidence: " 
+				+ this.confidence + " Detail: " + this.issueDetail + " Remediation: " + this.remediationDetail 
+				+ " Background: " + this.issueBackground + " Remediation Background: " + this.remediationBackground;
+	}
 
 }

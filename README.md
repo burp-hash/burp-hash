@@ -11,6 +11,6 @@ We are pleased to announce burp-hash has been accepted for [Black Hat USA Arsena
 
 ### Created by
 
-Scott Johnson
-Tim Malcomvetter
-Matt South
+* Scott Johnson
+* Tim Malcomvetter
+* Matt South

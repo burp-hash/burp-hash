@@ -60,6 +60,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		if(config.isSha1Enabled) hashAlgorithms.add(new HashAlgorithm(40, HashAlgorithmName.SHA1));
 		if(config.isMd5Enabled) hashAlgorithms.add(new HashAlgorithm(32, HashAlgorithmName.MD5));
 		
+		//Load persisted hashes/parameters for resuming testing from a previous test:
 		LoadHashes();
 		LoadHashedParameters();
 	}
@@ -72,9 +73,9 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	
 	private List<HashRecord> FindRegex(String s, Pattern pattern, HashAlgorithmName algorithm)
 	{
-		//TODO: Regex will flag on longer hex values - fix this.
-		//TODO: Add support for f0:a3:cd style encoding
-		//TODO: Add support for 0xFF style encoding
+		//TODO: Regex will flag on longer hex values - fix this.  Update 6/24: haven't seen this repeated in awhile. Needs more testing to confirm.
+		//TODO: Add support for f0:a3:cd style encoding (Not MVP)
+		//TODO: Add support for 0xFF style encoding (Not MVP)
 		List<HashRecord> hashes = new ArrayList<HashRecord>();
 		Matcher matcher = pattern.matcher(s);
 		boolean isUrlEncoded = false;
@@ -106,7 +107,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		{
 			String b64EncodedHash = b64matcher.group();
 			String urlDecodedHash = b64EncodedHash;
-			//TODO: Consider adding support for double-url encoded values
+			//TODO: Consider adding support for double-url encoded values (Not MVP)
 			try
 			{
 				//Hacky way to ensure the regex doesn't forget the trailing "==" signs:
@@ -118,11 +119,13 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 					urlDecodedHash += "=";
 					if (isUrlEncoded)
 					{
+						//TODO: I think I made this bit irrelevant with the new way I'm handling URL encoding:
 //						b64EncodedHash += "%3d"; //pad the orig so we can find the proper issue markers
 					}
 					if (padding == 3)
 					{
-						//stdErr.println("Oops? Padding == 3: " + urlDecodedHash); //TODO: research b64 encoding padding - don't think 3 "=" are allowed
+						//TODO: research b64 encoding padding - don't think 3 "=" are allowed
+						//stdErr.println("Oops? Padding == 3: " + urlDecodedHash); 						
 					}
 				}
 				if (urlDecodedMessage.contains(urlDecodedHash)) //this will fail if double url encoded
@@ -172,7 +175,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			List<HashRecord> results = FindRegex(s, hashAlgorithm.pattern, hashAlgorithm.name);
 			for(HashRecord result : results)
 			{
-				if (result.found)
+				if (result.found) //this check may be unnecessary now
 				{
 					boolean found = false;
 					for (HashRecord hash : hashes)
@@ -196,22 +199,22 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	
 	private void SaveHashes(List<HashRecord> hashes)
 	{
-		//TODO: Persist hashes
+		//TODO: Persist hashes later (MVP)
 	}
 	
 	private void LoadHashes()
 	{
-		//TODO: Implement retrieving hashes from disk
+		//TODO: Implement retrieving hashes from disk later (MVP)
 	}
 	
 	private void SaveHashedParameters(List<Parameter> parameters)
 	{
-		//TODO: Persist hashed params
+		//TODO: Persist hashed params later (MVP)
 	}
 	
 	private void LoadHashedParameters()
 	{
-		//TODO: Implement retrieving hashed params from disk
+		//TODO: Implement retrieving hashed params from disk later (MVP)
 	}
 	
 	private List<Issue> CreateHashDiscoveredIssues(List<HashRecord> hashes, IHttpRequestResponse baseRequestResponse, SearchType searchType)
@@ -275,7 +278,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	private List<Parameter> GenerateParameterHashes(List<Item> items)
 	{
 		List<Parameter> params = new ArrayList<>();
-		//TODO: create parameter objects with hashes based on observed hash types here
+		//TODO: create parameter objects with hashes based on observed hash types (via the hashTracker) here
 		return params;
 	}
 	
@@ -300,7 +303,8 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	@Override
 	public List<IScanIssue> doPassiveScan(IHttpRequestResponse baseRequestResponse) 
 	{
-		// TODO: implement method - this is where the real action begins
+		// TODO: implement a filter for only requests/responses from in-scope domains (tie into burp target scope)
+		// no reason to be hashing every param of every other random URL, because that will likely cause performance issues
 		List<IScanIssue> issues = new ArrayList<>();
 		String request = "", response = "";
 		try 
@@ -323,7 +327,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		}
 		for (IScanIssue issue : issues) 
 		{
-			stdOut.println("Begin Issue:\n" + issue.toString() + "\nEnd Issue");
+			//stdOut.println("Begin Issue:\n" + issue.toString() + "\nEnd Issue");
 		}
 		return issues;
 	}
@@ -332,16 +336,11 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	public int consolidateDuplicateIssues(IScanIssue existingIssue, IScanIssue newIssue) 
 	{
 		return 0;
+		//disabling the filtering for now, we may want this later:
 /*		if (existingIssue.getIssueDetail() == newIssue.getIssueDetail()) {
 			return -1; // discard new issue
 		} else {
 			return 0; // use both issues
 		}*/
-	}
-
-	private Object[] generateHashes() 
-	{
-		// TODO: only generate hashes that are enabled in config
-		return null;
 	}
 }

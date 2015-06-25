@@ -282,7 +282,6 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	private List<Parameter> GenerateParameterHashes(List<Item> items)
 	{
 		List<Parameter> params = new ArrayList<>();
-		//TODO: create parameter objects with hashes based on observed hash types (via the hashTracker) here
 		for(Item item : items)
 		{
 			Parameter param = new Parameter();
@@ -353,6 +352,8 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		
 		if (!config.reportHashesOnly)
 		{
+			//TODO: find a way to go back and update identified params with new hash algorithms 
+			//if new hash algorithms are added to the hashTracker
 			issues.addAll(FindHashedParameters(request, baseRequestResponse, SearchType.REQUEST));
 			issues.addAll(FindHashedParameters(request, baseRequestResponse, SearchType.RESPONSE));
 		}

@@ -283,10 +283,20 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		return items;
 	}
 	
+	private boolean IsItemAHash(Item item)
+	{
+		//TODO: implement a check to see if the item is already a hash
+		return false;
+	}
+	
 	private void GenerateParameterHashes(List<Item> items)
 	{
 		for(Item item : items)
 		{
+			if (IsItemAHash(item))
+			{
+				continue; // don't rehash the hashes
+			}
 			Parameter param = new Parameter();
 			param.name = item.getName();
 			param.value = item.getValue();
@@ -294,14 +304,13 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			{
 				try
 				{
-					stdOut.println("Algorithm: " + algorithm + " " + param.name + ":" + param.value);
 					ParameterHash hash = new ParameterHash();
 					hash.algorithm = algorithm;
 					MessageDigest md = MessageDigest.getInstance(algorithm.toString());
 					byte[] digest = md.digest(param.value.getBytes("UTF-8"));
 					hash.hashedValue = Utilities.byteArrayToHex(digest);
-					stdOut.println("hash: " + hash.hashedValue);
 					param.parameterHashes.add(hash);
+					stdOut.println("Algorithm: " + algorithm + " " + param.name + ":" + param.value + " hash: " + hash.hashedValue);
 				}
 				catch (NoSuchAlgorithmException nsae)
 				{ }
@@ -382,6 +391,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	@Override
 	public int consolidateDuplicateIssues(IScanIssue existingIssue, IScanIssue newIssue) 
 	{
+		//TODO: determine if we want to remove dupes or not
 		return 0;
 		//disabling the filtering for now, we may want this later:
 /*		if (existingIssue.getIssueDetail() == newIssue.getIssueDetail()) {

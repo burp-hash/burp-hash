@@ -266,10 +266,13 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	private List<Item> GetParameterItems(IHttpRequestResponse baseRequestResponse)
 	{
 		List<Item> items = new ArrayList<>();
+		//TODO: Verify req and resp objects are not null on the opposite message type
 		IRequestInfo req = this.helpers.analyzeRequest(baseRequestResponse);
 		List<IParameter> params = req.getParameters();
 		//TODO: Need to find a way to get cookies from requests to include any client side created cookies. This fails to build:
 		//items.addAll(req.getCookies());
+		//TODO: Find params in JSON
+		//TODO: Find params in headers
 		for (IParameter param : params)
 		{
 			items.add(new Item(param));

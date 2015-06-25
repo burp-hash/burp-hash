@@ -13,6 +13,7 @@ import java.util.regex.Matcher;
 import java.util.Base64;
 import java.net.URLDecoder;
 import java.util.EnumSet;
+import java.net.URL;
 
 public class BurpExtender implements IBurpExtender, IScannerCheck 
 {
@@ -200,22 +201,22 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	
 	private void SaveHashes(List<HashRecord> hashes)
 	{
-		//TODO: Persist hashes later (MVP)
+		//TODO: Persist hashes later (!MVP)
 	}
 	
 	private void LoadHashes()
 	{
-		//TODO: Implement retrieving hashes from disk later (MVP)
+		//TODO: Implement retrieving hashes from disk later (!MVP)
 	}
 	
 	private void SaveHashedParameters(List<Parameter> parameters)
 	{
-		//TODO: Persist hashed params later (MVP)
+		//TODO: Persist hashed params later (!MVP)
 	}
 	
 	private void LoadHashedParameters()
 	{
-		//TODO: Implement retrieving hashed params from disk later (MVP)
+		//TODO: Implement retrieving hashed params from disk later (!MVP)
 	}
 	
 	private List<Issue> CreateHashDiscoveredIssues(List<HashRecord> hashes, IHttpRequestResponse baseRequestResponse, SearchType searchType)
@@ -304,9 +305,15 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	@Override
 	public List<IScanIssue> doPassiveScan(IHttpRequestResponse baseRequestResponse) 
 	{
-		// TODO: implement a filter for only requests/responses from in-scope domains (tie into burp target scope)
-		// no reason to be hashing every param of every other random URL, because that will likely cause performance issues
 		List<IScanIssue> issues = new ArrayList<>();
+		URL url = helpers.analyzeRequest(baseRequestResponse).getUrl();
+		//stdOut.println("Processing " + url);
+		if (!callbacks.isInScope(url)) 
+		{
+			// no reason to be hashing every param of every other random URL
+			//stdOut.println("Not in scope: " + url);
+			return issues;
+		}
 		String request = "", response = "";
 		try 
 		{

@@ -25,7 +25,7 @@ class Config implements Serializable {
 	public boolean isSha256Enabled = true;
 	public boolean isSha384Enabled = false;
 	public boolean isSha512Enabled = false;
-	public boolean reportHashesOnly = true;
+	public boolean reportHashesOnly = false;
 
 	private Config(IBurpExtenderCallbacks c) 
 	{

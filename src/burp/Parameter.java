@@ -5,6 +5,6 @@ import java.util.List;
 
 public class Parameter
 {
-	public String Name = "", Value = "";
+	public String name = "", value = "";
 	public List<ParameterHash> parameterHashes = new ArrayList<ParameterHash>();	
 }

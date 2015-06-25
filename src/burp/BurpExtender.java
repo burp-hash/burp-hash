@@ -1,6 +1,7 @@
 package burp;
 
 import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -14,6 +15,7 @@ import java.util.Base64;
 import java.net.URLDecoder;
 import java.util.EnumSet;
 import java.net.URL;
+import java.security.*;
 
 public class BurpExtender implements IBurpExtender, IScannerCheck 
 {
@@ -281,6 +283,31 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	{
 		List<Parameter> params = new ArrayList<>();
 		//TODO: create parameter objects with hashes based on observed hash types (via the hashTracker) here
+		for(Item item : items)
+		{
+			Parameter param = new Parameter();
+			param.name = item.getName();
+			param.value = item.getValue();
+			for (HashAlgorithmName algorithm : hashTracker)
+			{
+				try
+				{
+					stdOut.println("Algorithm: " + algorithm + " " + param.name + ":" + param.value);
+					ParameterHash hash = new ParameterHash();
+					hash.hashAlgorithmName = algorithm;
+					MessageDigest md = MessageDigest.getInstance(algorithm.toString());
+					byte[] digest = md.digest(param.value.getBytes("UTF-8"));
+					hash.hashedValue = Utilities.byteArrayToHex(digest);
+					stdOut.println("hash: " + hash.hashedValue);
+					param.parameterHashes.add(hash);
+				}
+				catch (NoSuchAlgorithmException nsae)
+				{ }
+				catch (UnsupportedEncodingException uee)
+				{ }
+			}			
+			params.add(param);
+		}
 		return params;
 	}
 	

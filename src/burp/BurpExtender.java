@@ -33,6 +33,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	public static EnumSet<HashAlgorithmName> hashTracker = EnumSet.noneOf(HashAlgorithmName.class); 
 	private List<HashRecord> hashes = new ArrayList<>();
 	private List<Parameter> parameters = new ArrayList<>();
+	private List<IScanIssue> issues = new ArrayList<>();
 
 	@Override
 	public void registerExtenderCallbacks(final IBurpExtenderCallbacks c) 
@@ -80,8 +81,8 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	private List<HashRecord> FindRegex(String s, Pattern pattern, HashAlgorithmName algorithm)
 	{
 		//TODO: Regex will flag on longer hex values - fix this.  Update 6/24: haven't seen this repeated in awhile. Needs more testing to confirm.
-		//TODO: Add support for f0:a3:cd style encoding (Not MVP)
-		//TODO: Add support for 0xFF style encoding (Not MVP)
+		//TODO: Add support for f0:a3:cd style encoding (!MVP)
+		//TODO: Add support for 0xFF style encoding (!MVP)
 		List<HashRecord> hashes = new ArrayList<HashRecord>();
 		Matcher matcher = pattern.matcher(s);
 		boolean isUrlEncoded = false;
@@ -105,6 +106,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			hash.record = matcher.group();
 			hash.algorithm = algorithm;
 			hash.encodingType = EncodingType.Hex;
+			hash.sortMarkers();
 			hashes.add(hash);
 			hashTracker.add(algorithm);
 		}
@@ -159,6 +161,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 						hash.record = urlDecodedHash; //TODO: Consider persisting UrlEncoded version if it was found that way
 						hash.algorithm = algorithm;
 						hash.encodingType = EncodingType.Base64;
+						hash.sortMarkers();
 						hashes.add(hash);
 						hashTracker.add(algorithm);
 					}
@@ -172,34 +175,31 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 
 		return hashes;
 	}
-		
-	private List<Issue> FindHashes(String s, IHttpRequestResponse baseRequestResponse, SearchType searchType)
+	
+	private void FindHashes(String s, IHttpRequestResponse baseRequestResponse, SearchType searchType)
 	{
 		for(HashAlgorithm hashAlgorithm : hashAlgorithms)
 		{
 			List<HashRecord> results = FindRegex(s, hashAlgorithm.pattern, hashAlgorithm.name);
 			for(HashRecord result : results)
 			{
-				if (result.found) //this check may be unnecessary now
+				boolean found = false;
+				result.searchType = searchType;
+				for (HashRecord hash : hashes)
 				{
-					boolean found = false;
-					for (HashRecord hash : hashes)
-					{
-						if (hash.getNormalizedRecord().contains(result.getNormalizedRecord()) &&
-								!hash.getNormalizedRecord().equals(result.getNormalizedRecord()))
-						{ //to prevent shorter hashes (e.g. MD5) from being identified inside longer hashes (e.g. SHA-256)
-							found = true;
-							break;
-						}
+					if (hash.getNormalizedRecord().contains(result.getNormalizedRecord()) 
+							|| hash.getNormalizedRecord().equals(result.getNormalizedRecord())) //second half of OR statement is likely redundant
+					{ //to prevent shorter hashes (e.g. MD5) from being identified inside longer hashes (e.g. SHA-256)
+						found = true;
+						break;
 					}
-					if (found) continue;
-					hashes.add(result);
-					stdOut.println("Found " + hashAlgorithm.name + " hash: " + result.record + " URL: " + helpers.analyzeRequest(baseRequestResponse).getUrl());
 				}
+				if (found) continue;
+				hashes.add(result);
+				stdOut.println("Found " + hashAlgorithm.name + " hash: " + result.record + " URL: " + helpers.analyzeRequest(baseRequestResponse).getUrl());
 			}
 		}
 		SaveHashes();
-		return CreateHashDiscoveredIssues(baseRequestResponse, searchType);
 	}
 	
 	private void SaveHashes()
@@ -222,13 +222,12 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		//TODO: Implement retrieving hashed params from disk later (!MVP)
 	}
 	
-	private List<Issue> CreateHashDiscoveredIssues(IHttpRequestResponse baseRequestResponse, SearchType searchType)
+	private void CreateHashDiscoveredIssues(IHttpRequestResponse baseRequestResponse)
 	{
-		List<Issue> issues = new ArrayList<>();
 		for(HashRecord hash : hashes)
 		{
 			IHttpRequestResponse[] message;
-			if (searchType.equals(SearchType.REQUEST))
+			if (hash.searchType.equals(SearchType.REQUEST))
 			{ //apply markers to the request
 				message = new IHttpRequestResponse[] { callbacks.applyMarkers(baseRequestResponse, hash.markers, null) };
 			}
@@ -236,7 +235,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			{ //apply markers to the response
 				message = new IHttpRequestResponse[] { callbacks.applyMarkers(baseRequestResponse, null, hash.markers) };
 			}
-			HashDiscoveredIssueText issueText = new HashDiscoveredIssueText(hash, searchType);
+			HashDiscoveredIssueText issueText = new HashDiscoveredIssueText(hash);
 			Issue issue = new Issue(
 	                baseRequestResponse.getHttpService(),
 	                helpers.analyzeRequest(baseRequestResponse).getUrl(), 	
@@ -250,7 +249,6 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	                issueText.RemediationBackground);
 			issues.add(issue);
 		}
-		return issues;
 	}
 	
 	private List<Item> GetCookieItems(List<ICookie> cookies)
@@ -310,7 +308,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 					byte[] digest = md.digest(param.value.getBytes("UTF-8"));
 					hash.hashedValue = Utilities.byteArrayToHex(digest);
 					param.parameterHashes.add(hash);
-					stdOut.println("Algorithm: " + algorithm + " " + param.name + ":" + param.value + " hash: " + hash.hashedValue);
+					stdOut.println("Found Parameter: " + param.name + ":" + param.value + " " + algorithm + " hash: " + hash.hashedValue);
 				}
 				catch (NoSuchAlgorithmException nsae)
 				{ }
@@ -354,7 +352,6 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	@Override
 	public List<IScanIssue> doPassiveScan(IHttpRequestResponse baseRequestResponse) 
 	{
-		List<IScanIssue> issues = new ArrayList<>();
 		URL url = helpers.analyzeRequest(baseRequestResponse).getUrl();
 		if (!callbacks.isInScope(url)) 
 		{
@@ -368,8 +365,9 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			response = new String(baseRequestResponse.getResponse(), "UTF-8");
 		}
 		catch (Exception ex) {}
-		issues.addAll(FindHashes(request, baseRequestResponse, SearchType.REQUEST));
-		issues.addAll(FindHashes(response, baseRequestResponse, SearchType.RESPONSE));
+		FindHashes(request, baseRequestResponse, SearchType.REQUEST);
+		FindHashes(response, baseRequestResponse, SearchType.RESPONSE);
+		CreateHashDiscoveredIssues(baseRequestResponse);
 		
 		if (!config.reportHashesOnly)
 		{
@@ -377,6 +375,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			//if new hash algorithms are added to the hashTracker
 			issues.addAll(FindHashedParameters(baseRequestResponse));
 		}
+		issues = SortIssues(issues);
 		if (issues.size() > 0)
 		{
 			stdOut.println("Added " + issues.size() + " issues.");
@@ -387,17 +386,45 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		}
 		return issues;
 	}
+	
+	private List<IScanIssue> SortIssues(List<IScanIssue> issues)
+	{
+		List<IScanIssue> sorted = new ArrayList<>();
+		IScanIssue previous = null;
+		for (IScanIssue issue : issues)
+		{
+			if (previous == null)
+			{
+				previous = issue;
+				sorted.add(issue);
+				continue;
+			}
+			boolean unique = true;
+			for (IScanIssue i : sorted)
+			{
+				if (i.getIssueDetail().equals(issue.getIssueDetail()))
+				{
+					unique = false;
+					break;
+				}				
+			}
+			if (unique)
+			{
+				sorted.add(issue);
+			}
+		}
+		return sorted;
+	}
 
 	@Override
 	public int consolidateDuplicateIssues(IScanIssue existingIssue, IScanIssue newIssue) 
 	{
 		//TODO: determine if we want to remove dupes or not
-		return 0;
-		//disabling the filtering for now, we may want this later:
-/*		if (existingIssue.getIssueDetail() == newIssue.getIssueDetail()) {
+//		return 0;
+		if (existingIssue.getIssueDetail().equals(newIssue.getIssueDetail())) {
 			return -1; // discard new issue
 		} else {
 			return 0; // use both issues
-		}*/
+		}
 	}
 }

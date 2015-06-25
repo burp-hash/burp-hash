@@ -4,11 +4,11 @@ public class HashDiscoveredIssueText
 {
 	public String Name, Details, Severity, Confidence, RemediationDetails, Background, RemediationBackground;
 
-	public HashDiscoveredIssueText(HashRecord hash, SearchType searchType)
+	public HashDiscoveredIssueText(HashRecord hash)
 	{
 		Name = hash.algorithm + " Hash Discovered";
-		String source = "server response";
-		if (searchType.equals(SearchType.REQUEST))
+		String source = SearchType.RESPONSE.toString();
+		if (hash.searchType.equals(SearchType.REQUEST))
 		{
 			source = "request";
 		}
@@ -18,9 +18,8 @@ public class HashDiscoveredIssueText
 			Details += "<br>The hash was discovered encoded as:\n<ul><li>" + hash.record + "</li></ul>";
 		}
 		Confidence = "Tentative";
-		RemediationBackground = "This was found by the <a href=\""
-				+ BurpExtender.extensionUrl + "\">"
-				+ BurpExtender.extensionName + "</a> extension.";
+		RemediationBackground = "This was found by the " + BurpExtender.extensionName + 
+				" extension: <a href=\"" + BurpExtender.extensionUrl + "\">" + BurpExtender.extensionUrl + "</a>";
 		if (hash.algorithm.equals(HashAlgorithmName.MD5) || hash.algorithm.equals(HashAlgorithmName.SHA1))
 		{
 			Severity = "Medium";

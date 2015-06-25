@@ -31,8 +31,8 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	public Pattern b64 = Pattern.compile("[a-zA-Z0-9+/%]+={0,2}"); //added % for URL encoded B64
 	//TODO: Use this to determine which hash algos to use on params for hash guessing:
 	public static EnumSet<HashAlgorithmName> hashTracker = EnumSet.noneOf(HashAlgorithmName.class); 
-	private List<HashRecord> hashes = new ArrayList<HashRecord>();
-
+	private List<HashRecord> hashes = new ArrayList<>();
+	private List<Parameter> parameters = new ArrayList<>();
 
 	@Override
 	public void registerExtenderCallbacks(final IBurpExtenderCallbacks c) 
@@ -199,7 +199,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			}
 		}
 		SaveHashes();
-		return CreateHashDiscoveredIssues(hashes, baseRequestResponse, searchType);
+		return CreateHashDiscoveredIssues(baseRequestResponse, searchType);
 	}
 	
 	private void SaveHashes()
@@ -222,7 +222,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		//TODO: Implement retrieving hashed params from disk later (!MVP)
 	}
 	
-	private List<Issue> CreateHashDiscoveredIssues(List<HashRecord> hashes, IHttpRequestResponse baseRequestResponse, SearchType searchType)
+	private List<Issue> CreateHashDiscoveredIssues(IHttpRequestResponse baseRequestResponse, SearchType searchType)
 	{
 		List<Issue> issues = new ArrayList<>();
 		for(HashRecord hash : hashes)
@@ -280,9 +280,8 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		return items;
 	}
 	
-	private List<Parameter> GenerateParameterHashes(List<Item> items)
+	private void GenerateParameterHashes(List<Item> items)
 	{
-		List<Parameter> params = new ArrayList<>();
 		for(Item item : items)
 		{
 			Parameter param = new Parameter();
@@ -306,24 +305,24 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 				catch (UnsupportedEncodingException uee)
 				{ }
 			}			
-			params.add(param);
+			parameters.add(param);
 		}
-		return params;
 	}
 	
-	private List<Issue> FindMatchingHashes(List<Parameter> params, List<HashRecord> hashes)
+	private List<Issue> FindMatchingHashes()
 	{
 		List<Issue> issues = new ArrayList<>();
-		//TODO: implement logic to compare hashed params with discovered hashes
+		//TODO: improve logic to compare hashed params with discovered hashes
 		for(HashRecord hash : hashes)
 		{
-			for(Parameter param : params)
+			for(Parameter param : parameters)
 			{
 				for (ParameterHash paramHash : param.parameterHashes)
 				{
 					if (hash.algorithm == paramHash.algorithm && hash.getNormalizedRecord() == paramHash.hashedValue)
 					{
 						stdOut.println("I sunk your battleship " + paramHash.hashedValue + " " + param.name);
+						//TODO: Create an Issue object and add to issues collection
 					}
 				}
 			}
@@ -335,8 +334,8 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	{
 		List<Issue> issues = new ArrayList<>();		
 		List<Item> items = GetParameterItems(baseRequestResponse);
-		List<Parameter> params = GenerateParameterHashes(items);
-		issues.addAll(FindMatchingHashes(params, hashes));		
+		GenerateParameterHashes(items);
+		issues.addAll(FindMatchingHashes());
 		return issues;
 	}
 		
@@ -345,11 +344,9 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	{
 		List<IScanIssue> issues = new ArrayList<>();
 		URL url = helpers.analyzeRequest(baseRequestResponse).getUrl();
-		//stdOut.println("Processing " + url);
 		if (!callbacks.isInScope(url)) 
 		{
-			// no reason to be hashing every param of every other random URL
-			//stdOut.println("Not in scope: " + url);
+			//only hash in-scope URL's params for performance reasons
 			return issues;
 		}
 		String request = "", response = "";

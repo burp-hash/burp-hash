@@ -2,6 +2,6 @@ package burp;
 
 public class ParameterHash
 {
-	public HashAlgorithmName hashAlgorithmName;
+	public HashAlgorithmName algorithm;
 	public String hashedValue = "";
 }

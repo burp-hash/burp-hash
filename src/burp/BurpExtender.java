@@ -31,6 +31,8 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	public Pattern b64 = Pattern.compile("[a-zA-Z0-9+/%]+={0,2}"); //added % for URL encoded B64
 	//TODO: Use this to determine which hash algos to use on params for hash guessing:
 	public static EnumSet<HashAlgorithmName> hashTracker = EnumSet.noneOf(HashAlgorithmName.class); 
+	private List<HashRecord> hashes = new ArrayList<HashRecord>();
+
 
 	@Override
 	public void registerExtenderCallbacks(final IBurpExtenderCallbacks c) 
@@ -173,7 +175,6 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		
 	private List<Issue> FindHashes(String s, IHttpRequestResponse baseRequestResponse, SearchType searchType)
 	{
-		List<HashRecord> hashes = new ArrayList<HashRecord>();
 		for(HashAlgorithm hashAlgorithm : hashAlgorithms)
 		{
 			List<HashRecord> results = FindRegex(s, hashAlgorithm.pattern, hashAlgorithm.name);
@@ -197,11 +198,11 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 				}
 			}
 		}
-		SaveHashes(hashes);
+		SaveHashes();
 		return CreateHashDiscoveredIssues(hashes, baseRequestResponse, searchType);
 	}
 	
-	private void SaveHashes(List<HashRecord> hashes)
+	private void SaveHashes()
 	{
 		//TODO: Persist hashes later (!MVP)
 	}
@@ -211,7 +212,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		//TODO: Implement retrieving hashes from disk later (!MVP)
 	}
 	
-	private void SaveHashedParameters(List<Parameter> parameters)
+	private void SaveHashedParameters()
 	{
 		//TODO: Persist hashed params later (!MVP)
 	}
@@ -293,7 +294,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 				{
 					stdOut.println("Algorithm: " + algorithm + " " + param.name + ":" + param.value);
 					ParameterHash hash = new ParameterHash();
-					hash.hashAlgorithmName = algorithm;
+					hash.algorithm = algorithm;
 					MessageDigest md = MessageDigest.getInstance(algorithm.toString());
 					byte[] digest = md.digest(param.value.getBytes("UTF-8"));
 					hash.hashedValue = Utilities.byteArrayToHex(digest);
@@ -314,17 +315,28 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	{
 		List<Issue> issues = new ArrayList<>();
 		//TODO: implement logic to compare hashed params with discovered hashes
+		for(HashRecord hash : hashes)
+		{
+			for(Parameter param : params)
+			{
+				for (ParameterHash paramHash : param.parameterHashes)
+				{
+					if (hash.algorithm == paramHash.algorithm && hash.getNormalizedRecord() == paramHash.hashedValue)
+					{
+						stdOut.println("I sunk your battleship " + paramHash.hashedValue + " " + param.name);
+					}
+				}
+			}
+		}
 		return issues;
 	}
 	
-	//The parameter signature for this method can certainly change as we see fit, just patterning after the FindHashes() method:
-	private List<Issue> FindHashedParameters(String s, IHttpRequestResponse baseRequestResponse, SearchType searchType)
+	private List<Issue> FindHashedParameters(IHttpRequestResponse baseRequestResponse)
 	{
 		List<Issue> issues = new ArrayList<>();		
 		List<Item> items = GetParameterItems(baseRequestResponse);
 		List<Parameter> params = GenerateParameterHashes(items);
-		
-		
+		issues.addAll(FindMatchingHashes(params, hashes));		
 		return issues;
 	}
 		
@@ -354,8 +366,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		{
 			//TODO: find a way to go back and update identified params with new hash algorithms 
 			//if new hash algorithms are added to the hashTracker
-			issues.addAll(FindHashedParameters(request, baseRequestResponse, SearchType.REQUEST));
-			issues.addAll(FindHashedParameters(request, baseRequestResponse, SearchType.RESPONSE));
+			issues.addAll(FindHashedParameters(baseRequestResponse));
 		}
 		if (issues.size() > 0)
 		{

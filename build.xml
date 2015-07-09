@@ -8,7 +8,6 @@
     <property name="dist.dir" value="dist"/>
     <property name="dist.jar" value="${dist.dir}/burp-hash.jar"/>
     <property name="lib.dir" value="lib"/>
-    <property name="sqlite.jar" value="sqlite-jdbc-3.8.10.1.jar"/>
     
     <target name="init" description="Create Directories">
         <mkdir dir="${build.dir}"/>
@@ -30,11 +29,7 @@
     </target>
 
     <target name="build" depends="clean" description="Build project">
-        <javac srcdir="${src.dir}"
-               destdir="${build.dir}"
-               classpath="${lib.dir}/${sqlite.jar}"
-               includeantruntime="false"
-        />
+        <javac srcdir="${src.dir}" destdir="${build.dir}" includeantruntime="false"/>
     </target>
     
     <target name="build.jar" depends="build" description="Build JAR file">

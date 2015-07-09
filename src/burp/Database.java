@@ -19,6 +19,7 @@ public class Database {
 	private String sql_tableCheck = "SELECT name FROM sqlite_master WHERE type='table' AND name='params';";
 	private String sql_dropTable = "DROP TABLE IF EXISTS params;";
 	//TODO: design table schemas
+	// REF: https://www.sqlite.org/datatype3.html
 	private String sql_createTable = "CREATE TABLE params (name TEXT PRIMARY KEY NOT NULL, hash TEXT NOT NULL);";
 
 	public Database(IBurpExtenderCallbacks c) {
@@ -39,6 +40,19 @@ public class Database {
 		} catch (SQLException e) {
 			this.stdErr.println(e.getMessage());
 			return false;
+		}
+	}
+
+	/**
+	 * TODO: this might need some tweaking
+	 */
+	protected void finalize() throws Throwable {
+		try {
+			if (this.conn != null)
+				conn.close();
+		}
+		finally {
+			super.finalize();
 		}
 	}
 
@@ -65,6 +79,10 @@ public class Database {
 
 	/**
 	 * TODO: verify presence of all tables? (params, hashes, etc.)
+	 *
+	 * Another option would be to simply do away with this method altogether
+	 * and instead perform "CREATE TABLE IF NOT EXISTS" operations for all
+	 * tables every time the extension loads.
 	 */
 	public boolean verify() {
 		Statement stmt = null;

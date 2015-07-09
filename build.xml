@@ -1,4 +1,8 @@
 <project name="burp-hash build" basedir="." default="build.jar">
+    <property name="authors" value="Scott Johnson, Tim MalcomVetter, Matt South"/>
+    <property name="project.url" value="http://burp-hash.github.io/"/>
+    <property name="project.name" value="burp-hash"/>
+
     <property name="build.dir" value="build"/>
     <property name="src.dir" value="src"/>
     <property name="dist.dir" value="dist"/>
@@ -12,13 +16,13 @@
         <mkdir dir="${src.dir}"/>
     </target>
 
-    <target name="clean" depends="init" description="Clean up">
+    <target name="clean" depends="init" description="Clean Build Dir">
         <delete>
             <fileset dir="${build.dir}"/>
         </delete>
     </target>
     
-    <target name="distclean" depends="clean" description="Clean + Remove Jar">
+    <target name="distclean" depends="clean" description="Remove Jar">
         <delete>
             <fileset dir="${dist.dir}"/>
         </delete>
@@ -37,8 +41,10 @@
         <jar destfile="${dist.jar}" basedir="${build.dir}">
             <zipgroupfileset dir="${jar.dir}" includes="*.jar"/>
             <manifest>
-                <attribute name="Author" value="Scott Johnson, Tim MalcomVetter, Matt South"/>
                 <attribute name="Build-Date" value="${TODAY}"/>
+                <attribute name="Authors" value="${authors}"/>
+                <attribute name="Project-URL" value="${project.url}"/>
+                <attribute name="Project-Name" value="${project.name}"/>
             </manifest>
         </jar>
     </target>

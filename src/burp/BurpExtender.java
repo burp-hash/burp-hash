@@ -45,6 +45,27 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		callbacks.setExtensionName(extensionName);
 		callbacks.registerScannerCheck(this); // register with Burp as a scanner
 		LoadConfig();
+		dbTest(); //TODO: see comment above this method
+	}
+
+	/**
+	 * TODO: kill/modify/rename this method
+	 *
+	 * it's a quick & dirty POC for the SQLite functionality
+	 */
+	private void dbTest() {
+		Database db = new Database(this.callbacks);
+		if (!db.verify()) {
+			db.init();
+			if (!db.verify()) {
+				this.stdErr.println("Unable to initialize database.");
+			} else {
+				this.stdOut.println("Database initialized and verified.");
+			}
+		} else {
+			this.stdOut.println("Database verified.");
+		}
+		db.close();
 	}
 	
 	private void LoadConfig()

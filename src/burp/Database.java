@@ -12,18 +12,23 @@ import java.sql.Statement;
  * Handles SQLite database access
  */
 public class Database {
+	private Config config;
 	private Connection conn = null;
+	private IBurpExtenderCallbacks callbacks;
 	private PreparedStatement pstmt = null; //TODO: prepared statements for inserting data
 	private PrintWriter stdErr;
 
-	private String sql_tableCheck = "SELECT name FROM sqlite_master WHERE type='table' AND name='params';";
-	private String sql_dropTable = "DROP TABLE IF EXISTS params;";
+	private final String connPrefix = "jdbc:sqlite:";
+	private final String sql_tableCheck = "SELECT name FROM sqlite_master WHERE type='table' AND name='params';";
+	private final String sql_dropTable = "DROP TABLE IF EXISTS params;";
 	//TODO: design table schemas
 	// REF: https://www.sqlite.org/datatype3.html
-	private String sql_createTable = "CREATE TABLE params (name TEXT PRIMARY KEY NOT NULL, hash TEXT NOT NULL);";
+	private final String sql_createTable = "CREATE TABLE params (name TEXT PRIMARY KEY NOT NULL, hash TEXT NOT NULL);";
 
-	public Database(IBurpExtenderCallbacks c) {
-		stdErr = new PrintWriter(c.getStderr(), true);
+	public Database(BurpExtender b) {
+		this.callbacks = b.getCallbacks();
+		this.config = b.getConfig();
+		this.stdErr = b.getStdErr();
 		try {
 			// the following line loads the JDBC Driver
 			Class.forName("org.sqlite.JDBC");
@@ -56,6 +61,18 @@ public class Database {
 		}
 	}
 
+	private Connection getConnection() {
+		Connection connection;
+		try {
+			connection = DriverManager.getConnection(this.connPrefix
+					+ this.config.databaseFilename);
+		} catch (SQLException e) {
+			this.stdErr.println(e.getMessage());
+			return null;
+		}
+		return connection;
+	}
+
 	/**
 	 * TODO: drop/create all necessary tables (params, hashes, etc.)
 	 */
@@ -63,8 +80,7 @@ public class Database {
 		Statement stmt = null;
 		try {
 			if (this.conn == null) {
-				this.conn = DriverManager
-						.getConnection("jdbc:sqlite:burp-hash.db");
+				this.conn = this.getConnection();
 			}
 			stmt = conn.createStatement();
 			stmt.setQueryTimeout(30);
@@ -90,8 +106,7 @@ public class Database {
 
 		try {
 			if (this.conn == null) {
-				this.conn = DriverManager
-						.getConnection("jdbc:sqlite:burp-hash.db");
+				this.conn = this.getConnection();
 			}
 			stmt = conn.createStatement();
 			stmt.setQueryTimeout(30);

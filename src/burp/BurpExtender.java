@@ -28,6 +28,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	private PrintWriter stdErr;
 	private PrintWriter stdOut;
 	private Config config;
+	private GuiTab guiTab;
 	public Pattern b64 = Pattern.compile("[a-zA-Z0-9+/%]+={0,2}"); //added % for URL encoded B64
 	//TODO: Use this to determine which hash algos to use on params for hash guessing:
 	public static EnumSet<HashAlgorithmName> hashTracker = EnumSet.noneOf(HashAlgorithmName.class); 
@@ -42,10 +43,13 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		helpers = callbacks.getHelpers();
 		stdErr = new PrintWriter(callbacks.getStderr(), true);
 		stdOut = new PrintWriter(callbacks.getStdout(), true);
+
 		callbacks.setExtensionName(extensionName);
 		callbacks.registerScannerCheck(this); // register with Burp as a scanner
+
 		LoadConfig();
 		dbTest(); //TODO: see comment above this method
+		loadGui();
 	}
 
 	/**
@@ -67,7 +71,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		}
 		db.close();
 	}
-	
+
 	private void LoadConfig()
 	{
 		try 
@@ -91,6 +95,11 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		//Load persisted hashes/parameters for resuming testing from a previous test:
 		LoadHashes();
 		LoadHashedParameters();
+	}
+
+	private void loadGui() {
+		this.guiTab = new GuiTab(this.callbacks);
+		this.callbacks.addSuiteTab(this.guiTab);
 	}
 
 	@Override

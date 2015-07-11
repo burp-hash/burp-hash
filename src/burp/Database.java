@@ -125,20 +125,12 @@ public class Database {
 	/**
 	 * TODO: add methods for storing/retrieving data
 	 */
-	
 	public boolean upsert(Parameter toUpsert) {
-		try {
-			//don't know that we need this, but couldn't hurt
-			if (this.conn == null) {
-				this.conn = DriverManager
-						.getConnection("jdbc:sqlite:burp-hash.db");
-			}
-			//Want to update if exists, update if not
-			//INSERT OR REPLACE INTO table(name, hash) VALUES (toUpsert.name, toUpsert.hash);
-			return true;
-		} catch (SQLException e) {
-			this.stdErr.println(e.getMessage());
-			return false;
+		if (this.conn == null) {
+			this.conn = this.getConnection();
 		}
+		//Want to update if exists, update if not
+		//INSERT OR REPLACE INTO table(name, hash) VALUES (toUpsert.name, toUpsert.hash);
+		return true;
 	}
 }

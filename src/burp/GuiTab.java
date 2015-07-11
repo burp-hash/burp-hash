@@ -1,14 +1,20 @@
 package burp;
 
+import java.awt.Color;
 import java.awt.Component;
 import javax.swing.JPanel;
 
 public class GuiTab implements ITab {
-	IBurpExtenderCallbacks callbacks;
-	JPanel tab;
+	private Color burpGrey = new Color(146, 151, 161);
+	private Color burpOrange = new Color(229, 137, 0);
+	private Config config;
+	private IBurpExtenderCallbacks callbacks;
+	private JPanel tab;
 
-	public GuiTab(IBurpExtenderCallbacks c) {
-		callbacks = c;
+	public GuiTab(BurpExtender b) {
+		callbacks = b.getCallbacks();
+		config = b.getConfig();
+
 		tab = new JPanel();
 		callbacks.customizeUiComponent(tab);
 	}

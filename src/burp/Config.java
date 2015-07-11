@@ -25,6 +25,7 @@ class Config implements Serializable {
 	public boolean isSha384Enabled = false;
 	public boolean isSha512Enabled = false;
 	public boolean reportHashesOnly = false;
+	public String databaseFilename = BurpExtender.extensionName + ".db";
 
 	private Config(IBurpExtenderCallbacks c) 
 	{
@@ -36,7 +37,7 @@ class Config implements Serializable {
 
 	public static Config load(IBurpExtenderCallbacks c) throws Exception 
 	{
-		String encodedConfig = c.loadExtensionSetting("burp-hash");
+		String encodedConfig = c.loadExtensionSetting(BurpExtender.extensionName);
 		if (encodedConfig == null) 
 		{
 			return new Config(c);
@@ -64,7 +65,7 @@ class Config implements Serializable {
 		ObjectOutputStream out = new ObjectOutputStream(b);
 		out.writeObject(this);
 		String encoded = Base64.getEncoder().encodeToString(b.toByteArray());
-		this.callbacks.saveExtensionSetting("burp-hash", encoded);
+		this.callbacks.saveExtensionSetting(BurpExtender.extensionName, encoded);
 		this.stdOut.println("Successfully saved settings.");
 	}
 }

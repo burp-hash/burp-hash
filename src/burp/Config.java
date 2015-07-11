@@ -15,7 +15,6 @@ import java.util.Base64;
 class Config implements Serializable {
 	private static final long serialVersionUID = 1L;
 	private transient IBurpExtenderCallbacks callbacks;
-	private transient PrintWriter stdErr;
 	private transient PrintWriter stdOut;
 	// variables below are the extension settings
 	//TODO: convert the list below to use an EnumSet with the <HashAlgorithmName> enum:
@@ -30,7 +29,7 @@ class Config implements Serializable {
 	private Config(IBurpExtenderCallbacks c) 
 	{
 		callbacks = c;
-		stdErr = new PrintWriter(c.getStderr(), true);
+		new PrintWriter(c.getStderr(), true);
 		stdOut = new PrintWriter(c.getStdout(), true);
 		stdOut.println("No saved settings found — using defaults.");
 	}
@@ -47,10 +46,16 @@ class Config implements Serializable {
 		ObjectInputStream in = new ObjectInputStream(b);
 		Config cfg = (Config) in.readObject();
 		cfg.callbacks = c;
-		cfg.stdErr = new PrintWriter(c.getStderr(), true);
+		new PrintWriter(c.getStderr(), true);
 		cfg.stdOut = new PrintWriter(c.getStdout(), true);
 		cfg.stdOut.println("Successfully loaded settings.");
 		return cfg;
+	}
+
+	// reset to default config
+	public void reset() throws Exception {
+		this.callbacks.saveExtensionSetting(BurpExtender.extensionName, null);
+		this.stdOut.println("Configuration reset to defaults.");
 	}
 
 	public void save() throws Exception 
@@ -59,7 +64,7 @@ class Config implements Serializable {
 		ObjectOutputStream out = new ObjectOutputStream(b);
 		out.writeObject(this);
 		String encoded = Base64.getEncoder().encodeToString(b.toByteArray());
-		callbacks.saveExtensionSetting("burp-hash", encoded);
-		stdOut.println("Successfully saved settings.");
+		this.callbacks.saveExtensionSetting("burp-hash", encoded);
+		this.stdOut.println("Successfully saved settings.");
 	}
 }

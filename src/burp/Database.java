@@ -45,6 +45,9 @@ public class Database {
 		}
 	}
 
+	/**
+	 * close the database connection
+	 */
 	public boolean close() {
 		try {
 			if (this.conn != null)
@@ -69,6 +72,9 @@ public class Database {
 		}
 	}
 
+	/**
+	 * open and return database connections
+	 */
 	private Connection getConnection() {
 		Connection connection;
 		try {
@@ -82,6 +88,7 @@ public class Database {
 	}
 
 	/**
+	 * initialize the database
 	 * TODO: drop/create all necessary tables (params, hashes, etc.)
 	 */
 	public boolean init() {

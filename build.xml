@@ -4,11 +4,16 @@
     <property name="project.name" value="burp-hash"/>
 
     <property name="build.dir" value="build"/>
-    <property name="src.dir" value="src"/>
     <property name="dist.dir" value="dist"/>
     <property name="dist.jar" value="${dist.dir}/burp-hash.jar"/>
     <property name="lib.dir" value="lib"/>
+    <property name="src.dir" value="src"/>
+    <property name="sqlite.jar" value="sqlite-jdbc-3.8.10.1.jar"/>
     
+    <path id="classpath">
+        <fileset dir="${lib.dir}" includes="*.jar"/>
+    </path>
+
     <target name="init" description="Create Directories">
         <mkdir dir="${build.dir}"/>
         <mkdir dir="${dist.dir}"/>
@@ -29,7 +34,7 @@
     </target>
 
     <target name="build" depends="clean" description="Build project">
-        <javac srcdir="${src.dir}" destdir="${build.dir}" includeantruntime="false"/>
+        <javac srcdir="${src.dir}" destdir="${build.dir}" includeantruntime="false" classpathref="classpath"/>
     </target>
     
     <target name="build.jar" depends="build" description="Build JAR file">
@@ -39,7 +44,10 @@
         <copy file="LICENSE" tofile="${build.dir}/LICENSE"/>
         <tstamp/>
         <jar destfile="${dist.jar}" basedir="${build.dir}">
-            <zipgroupfileset dir="${lib.dir}" includes="*.jar"/>
+<!--
+            <zipgroupfileset dir="${lib.dir}" includes="sqlite-jdbc-*.jar"/>
+  -->
+            <zipfileset includes="**/*.class,**/*.dll,**/*.so,**/*.jnilib" src="${lib.dir}/${sqlite.jar}"/>
             <manifest>
                 <attribute name="Build-Date" value="${TODAY}"/>
                 <attribute name="Authors" value="${authors}"/>

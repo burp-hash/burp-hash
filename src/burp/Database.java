@@ -7,6 +7,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.EnumSet;
+import java.util.Set;
 
 /**
  * Handles SQLite database access
@@ -21,10 +23,16 @@ public class Database {
 	private final String connPrefix = "jdbc:sqlite:";
 	private final String sql_tableCheck = "SELECT name FROM sqlite_master WHERE type='table' AND name='params';";
 	private final String sql_dropTable = "DROP TABLE IF EXISTS params;";
-	//TODO: design table schemas
+	private final String insert_statement = "INSERT OR REPLACE INTO params(name, value, hashAlgo, hash) VALUES (?, ?, ?, ?)";
+	/*TODO: design table schemas. So we have parameter name, value, hashedvalue for each observed hash type
+		    I guess the big question is, do we want to base it on 
+		    	unique parameter value [would grow huge if the site uses CSRF tokens for example]
+		    	or unique parameter name[csrf_token would have one record that would be updated each time]
+		    	I'm opting for the former to keep the db smaller*/
 	// REF: https://www.sqlite.org/datatype3.html
-	private final String sql_createTable = "CREATE TABLE params (name TEXT PRIMARY KEY NOT NULL, hash TEXT NOT NULL);";
-
+	//Primary key is parametername+hashalgo, EG: email_Param+SHA256 and email_Param+MD5 would be two diff records
+	//Sorry for the flat DB, upserting items and deleting foreign keys in multiple tables sounds like trouble to me
+	private final String sql_createTable = "CREATE TABLE params (name TEXT NOT NULL, value TEXT NOT NULL, hashAlgo TEXT NOT NULL, hash TEXT NOT NULL, PRIMARY KEY(name, hashAlgo));";
 	public Database(BurpExtender b) {
 		this.callbacks = b.getCallbacks();
 		this.config = b.getConfig();
@@ -125,12 +133,26 @@ public class Database {
 	/**
 	 * TODO: add methods for storing/retrieving data
 	 */
-	public boolean upsert(Parameter toUpsert) {
-		if (this.conn == null) {
-			this.conn = this.getConnection();
+	public boolean upsert(Parameter toUpsert, Set<HashAlgorithmName> obervedHashTypes) {
+		//Want to update if param_name+hashalgo exists, insert if not
+		HashingEngine E = new HashingEngine();
+		try {
+			if (this.conn == null) {
+				this.conn = this.getConnection();
+				}
+			//insert a hash in db for all observedHashTypes
+			for (HashAlgorithmName n: obervedHashTypes){
+				this.pstmt = conn.prepareStatement(this.insert_statement);
+				this.pstmt.setString(1, toUpsert.name);
+				this.pstmt.setString(2, toUpsert.value);
+				this.pstmt.setString(3, n.toString());
+				this.pstmt.setString(4, E.returnHash(n, toUpsert.value));
+				this.pstmt.executeUpdate();
+			}
+			return true;
+		} catch (SQLException e) {
+			this.stdErr.println(e.getMessage());
+			return false;
 		}
-		//Want to update if exists, update if not
-		//INSERT OR REPLACE INTO table(name, hash) VALUES (toUpsert.name, toUpsert.hash);
-		return true;
 	}
 }

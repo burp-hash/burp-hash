@@ -77,36 +77,36 @@ public class GuiTab implements ITab {
 	}
 
 	private void btnSelectFileActionPerformed(ActionEvent evt) {
-		File dbFile = this.selectDatabaseFile();
+		File dbFile = selectDatabaseFile();
 		if (dbFile != null) {
-			config.databaseFilename = dbFile.toString();
+			config.databaseFilename = dbFile.getAbsolutePath();
 			txtFileName.setText(config.databaseFilename);
 			db.changeFile();
 		}
 	}
 
 	private void chkMd5ActionPerformed(ActionEvent evt) {
-		this.config.isMd5Enabled = !this.config.isMd5Enabled;
+		config.isMd5Enabled = !config.isMd5Enabled;
 	}
 
 	private void chkSha1ActionPerformed(ActionEvent evt) {
-		this.config.isSha1Enabled = !this.config.isSha1Enabled;
+		config.isSha1Enabled = !config.isSha1Enabled;
 	}
 
 	private void chkSha224ActionPerformed(ActionEvent evt) {
-		this.config.isSha224Enabled = !this.config.isSha224Enabled;
+		config.isSha224Enabled = !config.isSha224Enabled;
 	}
 
 	private void chkSha256ActionPerformed(ActionEvent evt) {
-		this.config.isSha256Enabled = !this.config.isSha256Enabled;
+		config.isSha256Enabled = !config.isSha256Enabled;
 	}
 
 	private void chkSha384ActionPerformed(ActionEvent evt) {
-		this.config.isSha384Enabled = !this.config.isSha384Enabled;
+		config.isSha384Enabled = !config.isSha384Enabled;
 	}
 
 	private void chkSha512ActionPerformed(ActionEvent evt) {
-		this.config.isSha512Enabled = !this.config.isSha512Enabled;
+		config.isSha512Enabled = !config.isSha512Enabled;
 	}
 
 	@Override
@@ -116,7 +116,7 @@ public class GuiTab implements ITab {
 
 	@Override
 	public Component getUiComponent() {
-		return this.pnlMain;
+		return pnlMain;
 	}
 
 	private void initComponents() {
@@ -148,12 +148,12 @@ public class GuiTab implements ITab {
 
 		loadConfig();
 
-		pnlBorder.setBorder(BorderFactory.createLineBorder(this.burpGrey));
+		pnlBorder.setBorder(BorderFactory.createLineBorder(burpGrey));
 		pnlBorder.setLocation(new Point(1, 1));
 
 		lblExtensionName.setFont(lblExtensionName.getFont().deriveFont(
 				lblExtensionName.getFont().getStyle() | Font.BOLD, lblExtensionName.getFont().getSize() + 3));
-		lblExtensionName.setForeground(this.burpOrange);
+		lblExtensionName.setForeground(burpOrange);
 		lblExtensionName.setText(BurpExtender.extensionName);
 
 		lblSelectAlgorithm.setText("Select hash algorithms to enable.");
@@ -535,15 +535,15 @@ public class GuiTab implements ITab {
 	}
 
 	private void loadConfig() {
-		chkMd5.setSelected(this.config.isMd5Enabled);
-		chkSha1.setSelected(this.config.isSha1Enabled);
-		chkSha224.setSelected(this.config.isSha224Enabled);
-		chkSha256.setSelected(this.config.isSha256Enabled);
-		chkSha384.setSelected(this.config.isSha384Enabled);
-		chkSha512.setSelected(this.config.isSha512Enabled);
-		rbMatch.setSelected(!this.config.reportHashesOnly);
-		rbReport.setSelected(this.config.reportHashesOnly);
-		txtFileName.setText(this.config.databaseFilename);
+		chkMd5.setSelected(config.isMd5Enabled);
+		chkSha1.setSelected(config.isSha1Enabled);
+		chkSha224.setSelected(config.isSha224Enabled);
+		chkSha256.setSelected(config.isSha256Enabled);
+		chkSha384.setSelected(config.isSha384Enabled);
+		chkSha512.setSelected(config.isSha512Enabled);
+		rbMatch.setSelected(!config.reportHashesOnly);
+		rbReport.setSelected(config.reportHashesOnly);
+		txtFileName.setText(config.databaseFilename);
 	}
 
 	private void rbMatchActionPerformed(ActionEvent evt) {
@@ -556,7 +556,7 @@ public class GuiTab implements ITab {
 
 	private File selectDatabaseFile() {
 		JFileChooser fc = new JFileChooser();
-		fc.setSelectedFile(new File(this.config.databaseFilename));
+		fc.setSelectedFile(new File(config.databaseFilename));
 		if (fc.showOpenDialog(pnlMain) == JFileChooser.APPROVE_OPTION) {
 			return fc.getSelectedFile();
 		}

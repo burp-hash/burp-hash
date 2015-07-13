@@ -19,6 +19,7 @@ public class Database {
 	private IBurpExtenderCallbacks callbacks;
 	private PreparedStatement pstmt = null; //TODO: prepared statements for inserting data
 	private PrintWriter stdErr;
+	private PrintWriter stdOut;
 
 	private final String connPrefix = "jdbc:sqlite:";
 	private final String sql_tableCheck = "SELECT name FROM sqlite_master WHERE type='table' AND name='params';";
@@ -34,15 +35,24 @@ public class Database {
 	//Sorry for the flat DB, upserting items and deleting foreign keys in multiple tables sounds like trouble to me
 	private final String sql_createTable = "CREATE TABLE params (name TEXT NOT NULL, value TEXT NOT NULL, hashAlgo TEXT NOT NULL, hash TEXT NOT NULL, PRIMARY KEY(name, hashAlgo));";
 	public Database(BurpExtender b) {
-		this.callbacks = b.getCallbacks();
-		this.config = b.getConfig();
-		this.stdErr = b.getStdErr();
+		callbacks = b.getCallbacks();
+		config = b.getConfig();
+		stdErr = b.getStdErr();
+		stdOut = b.getStdOut();
 		try {
 			// the following line loads the JDBC Driver
 			Class.forName("org.sqlite.JDBC");
 		} catch (ClassNotFoundException e) {
-			this.stdErr.println(e.getMessage());
+			stdErr.println(e.getMessage());
 		}
+	}
+
+	/**
+	 * open a different database file after a config change
+	 */
+	public void changeFile() {
+		close();
+		conn = getConnection();
 	}
 
 	/**
@@ -50,11 +60,11 @@ public class Database {
 	 */
 	public boolean close() {
 		try {
-			if (this.conn != null)
-				this.conn.close();
+			if (conn != null)
+				conn.close();
 			return true;
 		} catch (SQLException e) {
-			this.stdErr.println(e.getMessage());
+			stdErr.println(e.getMessage());
 			return false;
 		}
 	}
@@ -64,7 +74,7 @@ public class Database {
 	 */
 	protected void finalize() throws Throwable {
 		try {
-			if (this.conn != null)
+			if (conn != null)
 				conn.close();
 		}
 		finally {
@@ -78,10 +88,11 @@ public class Database {
 	private Connection getConnection() {
 		Connection connection;
 		try {
-			connection = DriverManager.getConnection(this.connPrefix
-					+ this.config.databaseFilename);
+			connection = DriverManager.getConnection(connPrefix
+					+ config.databaseFilename);
+			stdOut.println("Opened database file: " + config.databaseFilename);
 		} catch (SQLException e) {
-			this.stdErr.println(e.getMessage());
+			stdErr.println(e.getMessage());
 			return null;
 		}
 		return connection;
@@ -94,45 +105,16 @@ public class Database {
 	public boolean init() {
 		Statement stmt = null;
 		try {
-			if (this.conn == null) {
-				this.conn = this.getConnection();
+			if (conn == null) {
+				conn = getConnection();
 			}
 			stmt = conn.createStatement();
 			stmt.setQueryTimeout(30);
-			stmt.executeUpdate(this.sql_dropTable);
-			stmt.executeUpdate(this.sql_createTable);
+			stmt.executeUpdate(sql_dropTable);
+			stmt.executeUpdate(sql_createTable);
 			return true;
 		} catch (SQLException e) {
-			this.stdErr.println(e.getMessage());
-			return false;
-		}
-	}
-
-	/**
-	 * TODO: verify presence of all tables? (params, hashes, etc.)
-	 *
-	 * Another option would be to simply do away with this method altogether
-	 * and instead perform "CREATE TABLE IF NOT EXISTS" operations for all
-	 * tables every time the extension loads.
-	 */
-	public boolean verify() {
-		Statement stmt = null;
-		ResultSet rs = null;
-
-		try {
-			if (this.conn == null) {
-				this.conn = this.getConnection();
-			}
-			stmt = conn.createStatement();
-			stmt.setQueryTimeout(30);
-			rs = stmt.executeQuery(sql_tableCheck);
-			boolean x = false;
-			while (rs.next()) {
-				x = true;
-			}
-			return x;
-		} catch (SQLException e) {
-			this.stdErr.println(e.getMessage());
+			stdErr.println(e.getMessage());
 			return false;
 		}
 	}
@@ -144,21 +126,46 @@ public class Database {
 		//Want to update if param_name+hashalgo exists, insert if not
 		HashingEngine E = new HashingEngine();
 		try {
-			if (this.conn == null) {
-				this.conn = this.getConnection();
+			if (conn == null) {
+				conn = getConnection();
 				}
 			//insert a hash in db for all observedHashTypes
 			for (HashAlgorithmName n: obervedHashTypes){
-				this.pstmt = conn.prepareStatement(this.insert_statement);
-				this.pstmt.setString(1, toUpsert.name);
-				this.pstmt.setString(2, toUpsert.value);
-				this.pstmt.setString(3, n.toString());
-				this.pstmt.setString(4, E.returnHash(n, toUpsert.value));
-				this.pstmt.executeUpdate();
+				pstmt = conn.prepareStatement(insert_statement);
+				pstmt.setString(1, toUpsert.name);
+				pstmt.setString(2, toUpsert.value);
+				pstmt.setString(3, n.toString());
+				pstmt.setString(4, E.returnHash(n, toUpsert.value));
+				pstmt.executeUpdate();
 			}
 			return true;
 		} catch (SQLException e) {
-			this.stdErr.println(e.getMessage());
+			stdErr.println(e.getMessage());
+			return false;
+		}
+	}
+
+	/**
+	 * TODO: verify presence of all tables? (params, hashes, etc.)
+	 */
+	public boolean verify() {
+		Statement stmt = null;
+		ResultSet rs = null;
+
+		try {
+			if (conn == null) {
+				conn = getConnection();
+			}
+			stmt = conn.createStatement();
+			stmt.setQueryTimeout(30);
+			rs = stmt.executeQuery(sql_tableCheck);
+			boolean x = false;
+			while (rs.next()) {
+				x = true;
+			}
+			return x;
+		} catch (SQLException e) {
+			stdErr.println(e.getMessage());
 			return false;
 		}
 	}

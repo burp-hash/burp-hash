@@ -338,6 +338,10 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		return items;
 	}
 	
+	Database getDatabase() {
+		return db;
+	}
+
 	private List<Item> getParameterItems(IHttpRequestResponse baseRequestResponse)
 	{
 		List<Item> items = new ArrayList<>();
@@ -371,12 +375,12 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		//TODO: implement a check to see if the item is already a hash
 		return false;
 	}
-	
+
 	private void loadConfig()
 	{
 		try
 		{
-			config = Config.load(callbacks); // load configuration
+			config = Config.load(this); // load configuration
 		} 
 		catch (Exception e) 
 		{

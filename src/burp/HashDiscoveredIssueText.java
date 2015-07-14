@@ -20,7 +20,7 @@ public class HashDiscoveredIssueText
 		Confidence = "Tentative";
 		RemediationBackground = "This was found by the " + BurpExtender.extensionName + 
 				" extension: <a href=\"" + BurpExtender.extensionUrl + "\">" + BurpExtender.extensionUrl + "</a>";
-		if (hash.algorithm.equals(HashAlgorithmName.MD5) || hash.algorithm.equals(HashAlgorithmName.SHA1))
+		if (hash.algorithm.equals(HashAlgorithmName.MD5) || hash.algorithm.equals(HashAlgorithmName.SHA_1))
 		{
 			Severity = "Medium";
 			if (hash.algorithm.equals(HashAlgorithmName.MD5))

@@ -6,15 +6,7 @@ import java.security.*;
 //not sure that strings are the best? What do we consider normalized?
 public class HashingEngine {
 	public String returnHash (HashAlgorithmName n, String inValue) {
-		
-		//Can't thinkg of a better way to transform these to the format that
-		//Messagedigest wants
-		String hAlgo = n.toString();
-		if (hAlgo == "SHA512") hAlgo = "SHA-512";
-		if (hAlgo == "SHA1") hAlgo = "SHA-1";
-		if (hAlgo == "SHA224") hAlgo = "SHA-224";
-		if (hAlgo == "SHA256") hAlgo = "SHA-256";		
-		if (hAlgo == "SHA384") hAlgo = "SHA-384";
+		String hAlgo = n.getValue();
 		try {
 				MessageDigest md = MessageDigest.getInstance(hAlgo);
 		        md.update(inValue.getBytes());

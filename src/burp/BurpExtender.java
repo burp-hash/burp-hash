@@ -321,11 +321,11 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	}
 	
 	IBurpExtenderCallbacks getCallbacks() {
-		return this.callbacks;
+		return callbacks;
 	}
 	
 	Config getConfig() {
-		return this.config;
+		return config;
 	}
 	
 	private List<Item> getCookieItems(List<ICookie> cookies)
@@ -346,7 +346,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	{
 		List<Item> items = new ArrayList<>();
 		//TODO: Verify req and resp objects are not null on the opposite message type
-		IRequestInfo req = this.helpers.analyzeRequest(baseRequestResponse);
+		IRequestInfo req = helpers.analyzeRequest(baseRequestResponse);
 		List<IParameter> params = req.getParameters();
 		//TODO: Need to find a way to get cookies from requests to include any client side created cookies. This fails to build:
 		//items.addAll(req.getCookies());
@@ -356,18 +356,18 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		{
 			items.add(new Item(param));
 		}
-		IResponseInfo resp = this.helpers.analyzeResponse(baseRequestResponse.getResponse());
+		IResponseInfo resp = helpers.analyzeResponse(baseRequestResponse.getResponse());
 		items.addAll(getCookieItems(resp.getCookies()));
 		// this.stdOut.println("Items stored: " + items.size());
 		return items;
 	}
 
 	PrintWriter getStdErr() {
-		return this.stdErr;
+		return stdErr;
 	}
 
 	PrintWriter getStdOut() {
-		return this.stdOut;
+		return stdOut;
 	}
 
 	private boolean isItemAHash(Item item)
@@ -407,23 +407,23 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	 * it's a quick & dirty POC for the SQLite functionality
 	 */
 	private void loadDatabase() {
-		this.db = new Database(this);
+		db = new Database(this);
 		if (!db.verify()) {
 			db.init();
 			if (!db.verify()) {
-				this.stdErr.println("Unable to initialize database.");
+				stdErr.println("Unable to initialize database.");
 			} else {
-				this.stdOut.println("Database initialized and verified.");
+				stdOut.println("Database initialized and verified.");
 			}
 		} else {
-			this.stdOut.println("Database verified.");
+			stdOut.println("Database verified.");
 		}
 		db.close();
 	}
 
 	private void loadGui() {
-		this.guiTab = new GuiTab(this);
-		this.callbacks.addSuiteTab(this.guiTab);
+		guiTab = new GuiTab(this);
+		callbacks.addSuiteTab(guiTab);
 	}
 
 	private void loadHashedParameters()

@@ -15,6 +15,10 @@ import java.util.Base64;
 class Config implements Serializable {
 	private static final long serialVersionUID = 1L;
 
+	/**
+	 * load saved config if it exists
+	 * otherwise return default config
+	 */
 	public static Config load(BurpExtender b) throws Exception {
 		IBurpExtenderCallbacks c = b.getCallbacks();
 		String encodedConfig = c.loadExtensionSetting(BurpExtender.extensionName);
@@ -48,6 +52,9 @@ class Config implements Serializable {
 	public boolean isSha512Enabled;
 	public boolean reportHashesOnly;
 
+	/**
+	 * constructor used only when saved config is not found
+	 */
 	private Config(BurpExtender b) {
 		callbacks = b.getCallbacks();
 		stdErr = b.getStdErr();
@@ -75,6 +82,7 @@ class Config implements Serializable {
 		}
 		catch (IOException e) {
 			stdErr.println("Error saving configuration: " + e.getMessage());
+			return;
 		}
 		String encoded = Base64.getEncoder().encodeToString(bytes.toByteArray());
 		callbacks.saveExtensionSetting(BurpExtender.extensionName, encoded);

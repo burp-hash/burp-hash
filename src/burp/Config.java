@@ -2,6 +2,7 @@ package burp;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.PrintWriter;
@@ -25,12 +26,14 @@ class Config implements Serializable {
 		ObjectInputStream in = new ObjectInputStream(bytes);
 		Config cfg = (Config) in.readObject();
 		cfg.callbacks = c;
+		cfg.stdErr = b.getStdErr();
 		cfg.stdOut = b.getStdOut();
 		cfg.stdOut.println("Successfully loaded settings.");
 		return cfg;
 	}
 
 	private transient IBurpExtenderCallbacks callbacks;
+	private transient PrintWriter stdErr;
 	private transient PrintWriter stdOut;
 
 	// variables below are the extension settings
@@ -47,6 +50,7 @@ class Config implements Serializable {
 
 	private Config(BurpExtender b) {
 		callbacks = b.getCallbacks();
+		stdErr = b.getStdErr();
 		stdOut = b.getStdOut();
 		setDefaults();
 		stdOut.println("No saved settings found — using defaults.");
@@ -60,15 +64,25 @@ class Config implements Serializable {
 		setDefaults();
 	}
 
-	public void save() throws Exception {
+	/**
+	 * save serialized Config object into Burp extension settings
+	 */
+	public void save() {
 		ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-		ObjectOutputStream out = new ObjectOutputStream(bytes);
-		out.writeObject(this);
+		try {
+			ObjectOutputStream out = new ObjectOutputStream(bytes);
+			out.writeObject(this);
+		}
+		catch (IOException e) {
+			stdErr.println("Error saving configuration: " + e.getMessage());
+		}
 		String encoded = Base64.getEncoder().encodeToString(bytes.toByteArray());
 		callbacks.saveExtensionSetting(BurpExtender.extensionName, encoded);
-		stdOut.println("Successfully saved settings.");
 	}
 
+	/**
+	 * set default values in Config properties
+	 */
 	private void setDefaults() {
 		isMd5Enabled = isSha1Enabled = isSha256Enabled = true;
 		isSha224Enabled = isSha384Enabled = isSha512Enabled = reportHashesOnly = false;

@@ -80,6 +80,7 @@ public class GuiTab implements ITab {
 		File dbFile = selectDatabaseFile();
 		if (dbFile != null) {
 			config.databaseFilename = dbFile.getAbsolutePath();
+			config.save();
 			txtFileName.setText(config.databaseFilename);
 			db.changeFile();
 		}
@@ -87,26 +88,32 @@ public class GuiTab implements ITab {
 
 	private void chkMd5ActionPerformed(ActionEvent evt) {
 		config.isMd5Enabled = !config.isMd5Enabled;
+		config.save();
 	}
 
 	private void chkSha1ActionPerformed(ActionEvent evt) {
 		config.isSha1Enabled = !config.isSha1Enabled;
+		config.save();
 	}
 
 	private void chkSha224ActionPerformed(ActionEvent evt) {
 		config.isSha224Enabled = !config.isSha224Enabled;
+		config.save();
 	}
 
 	private void chkSha256ActionPerformed(ActionEvent evt) {
 		config.isSha256Enabled = !config.isSha256Enabled;
+		config.save();
 	}
 
 	private void chkSha384ActionPerformed(ActionEvent evt) {
 		config.isSha384Enabled = !config.isSha384Enabled;
+		config.save();
 	}
 
 	private void chkSha512ActionPerformed(ActionEvent evt) {
 		config.isSha512Enabled = !config.isSha512Enabled;
+		config.save();
 	}
 
 	@Override
@@ -548,10 +555,12 @@ public class GuiTab implements ITab {
 
 	private void rbMatchActionPerformed(ActionEvent evt) {
 		config.reportHashesOnly = false;
+		config.save();
 	}
 
 	private void rbReportActionPerformed(ActionEvent evt) {
 		config.reportHashesOnly = true;
+		config.save();
 	}
 
 	private File selectDatabaseFile() {

@@ -19,7 +19,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 {
 	public static final String extensionName = "burp-hash";
 	public static final String extensionUrl = "https://burp-hash.github.io/";
-	private static List<HashAlgorithm> hashAlgorithms = new ArrayList<HashAlgorithm>();
+	private static List<HashAlgorithm> hashAlgorithms = new ArrayList<>();
 	private static Map<String, String> hashdb = new ConcurrentHashMap<>();
 	//TODO: Use this to determine which hash algos to use on params for hash guessing:
 	public static EnumSet<HashAlgorithmName> hashTracker = EnumSet.noneOf(HashAlgorithmName.class);
@@ -307,7 +307,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 				{
 					ParameterHash hash = new ParameterHash();
 					hash.algorithm = algorithm;
-					MessageDigest md = MessageDigest.getInstance(algorithm.toString());
+					MessageDigest md = MessageDigest.getInstance(algorithm.getValue());
 					byte[] digest = md.digest(param.value.getBytes(StandardCharsets.UTF_8));
 					hash.hashedValue = Utilities.byteArrayToHex(digest);
 					param.parameterHashes.add(hash);

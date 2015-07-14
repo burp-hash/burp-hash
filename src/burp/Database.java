@@ -7,8 +7,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.EnumSet;
 import java.util.Set;
+
+import org.sqlite.SQLiteConfig;
 
 /**
  * Handles SQLite database access
@@ -87,9 +88,11 @@ public class Database {
 	 */
 	private Connection getConnection() {
 		Connection connection;
+		SQLiteConfig sc = new SQLiteConfig();
+		sc.setEncoding(SQLiteConfig.Encoding.UTF_8);
 		try {
 			connection = DriverManager.getConnection(connPrefix
-					+ config.databaseFilename);
+					+ config.databaseFilename, sc.toProperties());
 			stdOut.println("Opened database file: " + config.databaseFilename);
 		} catch (SQLException e) {
 			stdErr.println(e.getMessage());

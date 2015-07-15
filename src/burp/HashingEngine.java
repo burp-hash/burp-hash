@@ -1,9 +1,12 @@
 package burp;
 
 import java.security.*;
+import java.util.Base64;
 
+//nevermind, I think this is already built in BurpExtender
 //Use these to generate hashes for observed parameters.
-//not sure that strings are the best? What do we consider normalized?
+//normalized Utilities.byteArrayToHex(Base64.getDecoder().decode(record)).toLowerCase();
+
 public class HashingEngine {
 	public String returnHash (HashAlgorithmName n, String inValue) {
 		String hAlgo = n.getValue();

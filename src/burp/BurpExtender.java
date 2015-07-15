@@ -312,6 +312,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 					hash.hashedValue = Utilities.byteArrayToHex(digest);
 					param.parameterHashes.add(hash);
 					stdOut.println("Found Parameter: " + param.name + ":" + param.value + " " + algorithm + " hash: " + hash.hashedValue);
+					db.upsert(param, algorithm);
 				}
 				catch (NoSuchAlgorithmException nsae)
 				{ }
@@ -418,7 +419,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		} else {
 			stdOut.println("Database verified.");
 		}
-		db.close();
+		//db.close();
 	}
 
 	private void loadGui() {

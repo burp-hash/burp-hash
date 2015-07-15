@@ -125,7 +125,7 @@ public class Database {
 	/**
 	 * TODO: add methods for storing/retrieving data
 	 */
-	public boolean upsert(Parameter toUpsert, Set<HashAlgorithmName> obervedHashTypes) {
+	public boolean upsert(Parameter toUpsert, HashAlgorithmName n) {
 		//Want to update if param_name+hashalgo exists, insert if not
 		HashingEngine E = new HashingEngine();
 		try {
@@ -133,14 +133,13 @@ public class Database {
 				conn = getConnection();
 				}
 			//insert a hash in db for all observedHashTypes
-			for (HashAlgorithmName n: obervedHashTypes){
-				pstmt = conn.prepareStatement(insert_statement);
-				pstmt.setString(1, toUpsert.name);
-				pstmt.setString(2, toUpsert.value);
-				pstmt.setString(3, n.toString());
-				pstmt.setString(4, E.returnHash(n, toUpsert.value));
-				pstmt.executeUpdate();
-			}
+			pstmt = conn.prepareStatement(insert_statement);
+			pstmt.setString(1, toUpsert.name);
+			pstmt.setString(2, toUpsert.value);
+			pstmt.setString(3, n.toString());
+			pstmt.setString(4, E.returnHash(n, toUpsert.value));
+			pstmt.executeUpdate();
+			stdOut.println("Adding Found Parameter to DB: " + toUpsert.name + ":" + toUpsert.value + " " + n.toString());
 			return true;
 		} catch (SQLException e) {
 			stdErr.println(e.getMessage());

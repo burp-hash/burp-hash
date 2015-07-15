@@ -307,15 +307,17 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 				{
 					ParameterHash hash = new ParameterHash();
 					hash.algorithm = algorithm;
+					//maybe replace with hashingEngine
 					MessageDigest md = MessageDigest.getInstance(algorithm.getValue());
 					byte[] digest = md.digest(param.value.getBytes(StandardCharsets.UTF_8));
 					hash.hashedValue = Utilities.byteArrayToHex(digest);
 					param.parameterHashes.add(hash);
 					stdOut.println("Found Parameter: " + param.name + ":" + param.value + " " + algorithm + " hash: " + hash.hashedValue);
-					db.upsert(param, algorithm);
+					if (this.db.upsert(param, algorithm)) stdOut.println("values added to db");
+					//hmm this ^ isn't firing. I don't think I instantiated the db right
 				}
 				catch (NoSuchAlgorithmException nsae)
-				{ }
+				{ stdOut.println("No Such Algorithm Error"); }
 			}
 			parameters.add(param);
 		}

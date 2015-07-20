@@ -55,6 +55,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	public int consolidateDuplicateIssues(IScanIssue existingIssue, IScanIssue newIssue)
 	{
 		//TODO: determine if we want to remove dupes or not
+		//TODO: determine if we need better dupe comparisons
 //		return 0;
 		if (existingIssue.getIssueDetail().equals(newIssue.getIssueDetail())) {
 			return -1; // discard new issue
@@ -101,19 +102,15 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	@Override
 	public List<IScanIssue> doPassiveScan(IHttpRequestResponse baseRequestResponse)
 	{
+		String request, response;
 		URL url = helpers.analyzeRequest(baseRequestResponse).getUrl();
 		if (!callbacks.isInScope(url))
 		{
-			//only hash in-scope URL's params for performance reasons
-			return issues;
+			// only scan in-scope URLs for performance reasons
+			return null;
 		}
-		String request = "", response = "";
-		try 
-		{
-			request = new String(baseRequestResponse.getRequest(), StandardCharsets.UTF_8);
-			response = new String(baseRequestResponse.getResponse(), StandardCharsets.UTF_8);
-		}
-		catch (Exception ex) {}
+		request = new String(baseRequestResponse.getRequest(), StandardCharsets.UTF_8);
+		response = new String(baseRequestResponse.getResponse(), StandardCharsets.UTF_8);
 		findHashes(request, baseRequestResponse, SearchType.REQUEST);
 		findHashes(response, baseRequestResponse, SearchType.RESPONSE);
 		createHashDiscoveredIssues(baseRequestResponse);
@@ -212,6 +209,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		}
 		catch (java.io.UnsupportedEncodingException uee) { }
 
+		// search for hashes in raw request/response
 		while (matcher.find())
 		{
 			HashRecord hash = new HashRecord();
@@ -224,6 +222,9 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			hashes.add(hash);
 			hashTracker.add(algorithm);
 		}
+
+		// search for Base64 encoding
+		// TODO: research b64 regex <http://stackoverflow.com/questions/475074>
 		Matcher b64matcher = b64.matcher(urlDecodedMessage); 
 		while (b64matcher.find())
 		{
@@ -376,6 +377,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		return false;
 	}
 
+	//TODO: add method to (re)build hashAlgorithms on config change
 	private void loadConfig()
 	{
 		try
@@ -402,9 +404,9 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	}
 
 	/**
-	 * TODO: kill/modify/rename this method
-	 *
-	 * it's a quick & dirty POC for the SQLite functionality
+	 * SQLite
+	 * TODO: load db on demand, close when not in use
+	 * TODO: save only when asked by user? (!MVP)
 	 */
 	private void loadDatabase() {
 		db = new Database(this);

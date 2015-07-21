@@ -43,7 +43,7 @@
         </delete>
         <copy file="LICENSE" tofile="${build.dir}/LICENSE"/>
         <tstamp/>
-        <jar destfile="${dist.jar}" basedir="${build.dir}">
+        <jar destfile="${dist.jar}" basedir="${build.dir}" level="9">
 <!--
             <zipgroupfileset dir="${lib.dir}" includes="sqlite-jdbc-*.jar"/>
   -->

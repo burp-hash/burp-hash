@@ -44,9 +44,6 @@
         <copy file="LICENSE" tofile="${build.dir}/LICENSE"/>
         <tstamp/>
         <jar destfile="${dist.jar}" basedir="${build.dir}" level="9">
-<!--
-            <zipgroupfileset dir="${lib.dir}" includes="sqlite-jdbc-*.jar"/>
-  -->
             <zipfileset includes="**/*.class,**/*.dll,**/*.so,**/*.jnilib" src="${lib.dir}/${sqlite.jar}"/>
             <manifest>
                 <attribute name="Build-Date" value="${TODAY}"/>

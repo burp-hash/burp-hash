@@ -23,7 +23,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	private static Map<String, String> hashdb = new ConcurrentHashMap<>();
 	//TODO: Use this to determine which hash algos to use on params for hash guessing:
 	public static EnumSet<HashAlgorithmName> hashTracker = EnumSet.noneOf(HashAlgorithmName.class);
-	public Pattern b64 = Pattern.compile("[a-zA-Z0-9+/%]+={0,2}"); //added % for URL encoded B64
+	public Pattern b64 = Pattern.compile("(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?");
 	private IBurpExtenderCallbacks callbacks;
 	private Config config;
 	private Database db;
@@ -55,6 +55,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	public int consolidateDuplicateIssues(IScanIssue existingIssue, IScanIssue newIssue)
 	{
 		//TODO: determine if we want to remove dupes or not
+		//TODO: determine if we need better dupe comparisons
 //		return 0;
 		if (existingIssue.getIssueDetail().equals(newIssue.getIssueDetail())) {
 			return -1; // discard new issue
@@ -101,19 +102,15 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	@Override
 	public List<IScanIssue> doPassiveScan(IHttpRequestResponse baseRequestResponse)
 	{
+		String request, response;
 		URL url = helpers.analyzeRequest(baseRequestResponse).getUrl();
 		if (!callbacks.isInScope(url))
 		{
-			//only hash in-scope URL's params for performance reasons
-			return issues;
+			// only scan in-scope URLs for performance reasons
+			return null;
 		}
-		String request = "", response = "";
-		try 
-		{
-			request = new String(baseRequestResponse.getRequest(), StandardCharsets.UTF_8);
-			response = new String(baseRequestResponse.getResponse(), StandardCharsets.UTF_8);
-		}
-		catch (Exception ex) {}
+		request = new String(baseRequestResponse.getRequest(), StandardCharsets.UTF_8);
+		response = new String(baseRequestResponse.getResponse(), StandardCharsets.UTF_8);
 		findHashes(request, baseRequestResponse, SearchType.REQUEST);
 		findHashes(response, baseRequestResponse, SearchType.RESPONSE);
 		createHashDiscoveredIssues(baseRequestResponse);
@@ -154,11 +151,14 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			{
 				boolean found = false;
 				result.searchType = searchType;
+
+				// don't add hash if it already exists in hashes
+				//TODO: we are losing multiple occurrences here; rework comparison?
+				//TODO: same hash string with different marker values gets lost
 				for (HashRecord hash : hashes)
 				{
-					if (hash.getNormalizedRecord().contains(result.getNormalizedRecord())
-							|| hash.getNormalizedRecord().equals(result.getNormalizedRecord())) //second half of OR statement is likely redundant
-					{ //to prevent shorter hashes (e.g. MD5) from being identified inside longer hashes (e.g. SHA-256)
+					if (hash.getNormalizedRecord().equals(result.getNormalizedRecord()))
+					{
 						found = true;
 						break;
 					}
@@ -194,13 +194,18 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 
 	private List<HashRecord> findRegex(String s, Pattern pattern, HashAlgorithmName algorithm)
 	{
-		//TODO: Regex will flag on longer hex values - fix this.  Update 6/24: haven't seen this repeated in awhile. Needs more testing to confirm.
 		//TODO: Add support for f0:a3:cd style encoding (!MVP)
 		//TODO: Add support for 0xFF style encoding (!MVP)
 		List<HashRecord> hashes = new ArrayList<HashRecord>();
 		Matcher matcher = pattern.matcher(s);
 		boolean isUrlEncoded = false;
 		String urlDecodedMessage = s;
+
+		/**
+		 * urlDecodedMessage.equals(s) does not work as expected because decoder seems to
+		 * return different value than s even when there's nothing to decode
+		 * TODO: find a better way to compare
+		 **
 		try
 		{
 			urlDecodedMessage = URLDecoder.decode(s, StandardCharsets.UTF_8.toString());
@@ -210,8 +215,12 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 				isUrlEncoded = true;
 			}
 		}
-		catch (java.io.UnsupportedEncodingException uee) { }
+		catch (java.io.UnsupportedEncodingException uee) {
+			stdErr.println(uee);
+		}
+		/*******/
 
+		// search for hashes in raw request/response
 		while (matcher.find())
 		{
 			HashRecord hash = new HashRecord();
@@ -224,61 +233,43 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			hashes.add(hash);
 			hashTracker.add(algorithm);
 		}
+
+		// search for Base64-encoded data
 		Matcher b64matcher = b64.matcher(urlDecodedMessage); 
 		while (b64matcher.find())
 		{
 			String b64EncodedHash = b64matcher.group();
 			String urlDecodedHash = b64EncodedHash;
-			//TODO: Consider adding support for double-url encoded values (Not MVP)
+
+			// save some cycles
+			if (b64EncodedHash.isEmpty() || b64EncodedHash.length() < 16)
+				continue;
+			//TODO: Consider adding support for double-url encoded values (!MVP)
 			try
 			{
-				//Hacky way to ensure the regex doesn't forget the trailing "==" signs:
-				//may have to adjust for URLencoding with the padding...
-				int padding = 0;
-				while (urlDecodedHash.length() % 4 != 0)
+				/**
+				 * B64 regex matches text with words or numbers where number of chars divisible by 4
+				 * so we should handle decoding exceptions gracefully
+				 */
+				String hexHash = Utilities.byteArrayToHex(Base64.getDecoder().decode(urlDecodedHash));
+				matcher = pattern.matcher(hexHash);
+				if (matcher.matches())
 				{
-					padding++;
-					urlDecodedHash += "=";
-					if (isUrlEncoded)
-					{
-						//TODO: I think I made this bit irrelevant with the new way I'm handling URL encoding:
-//						b64EncodedHash += "%3d"; //pad the orig so we can find the proper issue markers
+					stdOut.println("Base64 Match: " + urlDecodedHash + " <<" + hexHash + ">>");
+					HashRecord hash = new HashRecord();
+					hash.found = true;
+					if (isUrlEncoded) {
+						b64EncodedHash = b64EncodedHash.replace("=", "%3D");
 					}
-					if (padding == 3)
-					{
-						//TODO: research b64 encoding padding - don't think 3 "=" are allowed
-						//stdErr.println("Oops? Padding == 3: " + urlDecodedHash); 						
-					}
-				}
-				if (urlDecodedMessage.contains(urlDecodedHash)) //this will fail if double url encoded
-				{
-					//sadly, the base64 regex by itself is ineffective (false positives)
-					//so we need to try to decode and catch exceptions instead
-					String hexHash = Utilities.byteArrayToHex(Base64.getDecoder().decode(urlDecodedHash));
-					matcher = pattern.matcher(hexHash);
-					if (matcher.matches())
-					{
-						stdOut.println("Base64 Match: " + urlDecodedHash + " <<" + hexHash + ">>");
-						HashRecord hash = new HashRecord();
-						hash.found = true;	
-						if (isUrlEncoded)
-						{
-							b64EncodedHash = b64EncodedHash.replace("=", "%3D");
-							int i = s.indexOf(b64EncodedHash);
-							hash.markers.add(new int[] { i, (i + b64EncodedHash.length()) });
-							stdOut.println("Markers: " + i + " " + (i + b64EncodedHash.length()));
-						}
-						else
-						{
-							hash.markers.add(new int[] { b64matcher.start(), (b64matcher.end() + padding) }); 
-						}
-						hash.record = urlDecodedHash; //TODO: Consider persisting UrlEncoded version if it was found that way
-						hash.algorithm = algorithm;
-						hash.encodingType = EncodingType.Base64;
-						hash.sortMarkers();
-						hashes.add(hash);
-						hashTracker.add(algorithm);
-					}
+					int i = s.indexOf(b64EncodedHash);
+					hash.markers.add(new int[] { i, (i + b64EncodedHash.length()) });
+//						stdOut.println("Markers: " + i + " " + (i + b64EncodedHash.length()));
+					hash.record = urlDecodedHash; //TODO: Consider persisting UrlEncoded version if it was found that way
+					hash.algorithm = algorithm;
+					hash.encodingType = EncodingType.Base64;
+					hash.sortMarkers();
+					hashes.add(hash);
+					hashTracker.add(algorithm);
 				}
 			}
 			catch (IllegalArgumentException iae)
@@ -286,7 +277,6 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 				stdErr.println(iae);
 			}
 		}
-
 		return hashes;
 	}
 	
@@ -376,6 +366,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		return false;
 	}
 
+	//TODO: add method to (re)build hashAlgorithms on config change
 	private void loadConfig()
 	{
 		try
@@ -402,9 +393,9 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	}
 
 	/**
-	 * TODO: kill/modify/rename this method
-	 *
-	 * it's a quick & dirty POC for the SQLite functionality
+	 * SQLite
+	 * TODO: load db on demand, close when not in use
+	 * TODO: save only when asked by user? (!MVP)
 	 */
 	private void loadDatabase() {
 		db = new Database(this);

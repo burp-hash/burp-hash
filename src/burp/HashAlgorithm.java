@@ -13,6 +13,6 @@ public class HashAlgorithm
 	{
 		this.charWidth = charWidth;
 		this.name = name;
-		this.pattern = Pattern.compile(String.format(hexRegex, charWidth));
+		pattern = Pattern.compile(String.format(hexRegex, charWidth));
 	}
 }

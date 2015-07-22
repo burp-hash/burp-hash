@@ -60,7 +60,7 @@ class Config implements Serializable {
 		stdErr = b.getStdErr();
 		stdOut = b.getStdOut();
 		setDefaults();
-		stdOut.println("No saved settings found — using defaults.");
+		stdOut.println("No saved settings found - using defaults.");
 	}
 
 	/**

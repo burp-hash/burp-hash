@@ -58,7 +58,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		//TODO: determine if we need better dupe comparisons
 //		return 0;
 		if (existingIssue.getIssueDetail().equals(newIssue.getIssueDetail())) {
-			return -1; // discard new issue
+			return -1; // discard new issue 
 		} else {
 			return 0; // use both issues
 		}
@@ -177,17 +177,30 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		//TODO: improve logic to compare hashed params with discovered hashes
 		for(HashRecord hash : hashes)
 		{
+			ParameterHash tempPH = new ParameterHash();
+				tempPH.hashedValue = hash.record;
+				tempPH.algorithm = hash.algorithm;
+			String foundHit = db.exists(tempPH);
+			if(foundHit != null && !foundHit.isEmpty()) {
+				stdOut.println("!!!Matching Parameter!!!:"+foundHit);
+			}
+			/*
 			for(Parameter param : parameters)
 			{
 				for (ParameterHash paramHash : param.parameterHashes)
 				{
+					String foundHit = db.exists(paramHash);
+					if(foundHit != null && !foundHit.isEmpty()) {
+						stdOut.println("Matching Parameter:"+foundHit);
+					}
+						
 					if (hash.algorithm == paramHash.algorithm && hash.getNormalizedRecord() == paramHash.hashedValue)
 					{
 						stdOut.println("I sunk your battleship " + paramHash.hashedValue + " " + param.name);
 						//TODO: Create an Issue object and add to issues collection
 					}
 				}
-			}
+			}*/
 		}
 		return issues;
 	}
@@ -287,6 +300,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			if (isItemAHash(item))
 			{
 				continue; // don't rehash the hashes
+				//but probably want to add them to the parameter DB at some point
 			}
 			Parameter param = new Parameter();
 			param.name = item.getName();
@@ -303,8 +317,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 					hash.hashedValue = Utilities.byteArrayToHex(digest);
 					param.parameterHashes.add(hash);
 					stdOut.println("Found Parameter: " + param.name + ":" + param.value + " " + algorithm + " hash: " + hash.hashedValue);
-					if (this.db.upsert(param, algorithm)) stdOut.println("values added to db");
-					//hmm this ^ isn't firing. I don't think I instantiated the db right
+					if (this.db.upsert(param, hash)) stdOut.println("values added to db");
 				}
 				catch (NoSuchAlgorithmException nsae)
 				{ stdOut.println("No Such Algorithm Error"); }
@@ -366,6 +379,11 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	private boolean isItemAHash(Item item)
 	{
 		//TODO: implement a check to see if the item is already a hash
+		for(HashRecord hash : hashes)
+		{
+			if (hash.record == item.getValue())
+					return true;
+		}
 		return false;
 	}
 

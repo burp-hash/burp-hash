@@ -24,6 +24,7 @@ public class Database {
 
 	private final String connPrefix = "jdbc:sqlite:";
 	private final String sql_tableCheck = "SELECT name FROM sqlite_master WHERE type='table' AND name='params';";
+	private final String hashCheck = "SELECT * FROM params WHERE hash=?;";
 	private final String sql_dropTable = "DROP TABLE IF EXISTS params;";
 	private final String insert_statement = "INSERT OR REPLACE INTO params(name, value, hashAlgo, hash) VALUES (?, ?, ?, ?)";
 	/*TODO: design table schemas. So we have parameter name, value, hashedvalue for each observed hash type
@@ -32,9 +33,9 @@ public class Database {
 		    	or unique parameter name[csrf_token would have one record that would be updated each time]
 		    	I'm opting for the former to keep the db smaller*/
 	// REF: https://www.sqlite.org/datatype3.html
-	//Primary key is parametername+hashalgo, EG: email_Param+SHA256 and email_Param+MD5 would be two diff records
+	//Primary key is parametervalue+hashalgo, EG: test@email.com+SHA256 and test@email.com+MD5 would be two diff records
 	//Sorry for the flat DB, upserting items and deleting foreign keys in multiple tables sounds like trouble to me
-	private final String sql_createTable = "CREATE TABLE params (name TEXT NOT NULL, value TEXT NOT NULL, hashAlgo TEXT NOT NULL, hash TEXT NOT NULL, PRIMARY KEY(name, hashAlgo));";
+	private final String sql_createTable = "CREATE TABLE params (name TEXT NOT NULL, value TEXT NOT NULL, hashAlgo TEXT NOT NULL, hash TEXT NOT NULL, PRIMARY KEY(value, hashAlgo));";
 	public Database(BurpExtender b) {
 		callbacks = b.getCallbacks();
 		config = b.getConfig();
@@ -124,10 +125,17 @@ public class Database {
 
 	/**
 	 * TODO: add methods for storing/retrieving data
+	 * Parameter param = new Parameter();
+			param.name = item.getName();
+			param.value = item.getValue();
+			for (HashAlgorithmName algorithm : hashTracker)
+			{
+				try
+				{
+					ParameterHash hash = new ParameterHash();
 	 */
-	public boolean upsert(Parameter toUpsert, HashAlgorithmName n) {
+	public boolean upsert(Parameter toUpsert, ParameterHash hashedParam) {
 		//Want to update if param_name+hashalgo exists, insert if not
-		HashingEngine E = new HashingEngine();
 		try {
 			if (conn == null) {
 				conn = getConnection();
@@ -136,14 +144,39 @@ public class Database {
 			pstmt = conn.prepareStatement(insert_statement);
 			pstmt.setString(1, toUpsert.name);
 			pstmt.setString(2, toUpsert.value);
-			pstmt.setString(3, n.toString());
-			pstmt.setString(4, E.returnHash(n, toUpsert.value));
+			pstmt.setString(3, hashedParam.algorithm.toString());
+			pstmt.setString(4, hashedParam.hashedValue);
 			pstmt.executeUpdate();
-			stdOut.println("Adding Found Parameter to DB: " + toUpsert.name + ":" + toUpsert.value + " " + n.toString());
+			stdOut.println("Adding Found Parameter to DB: " + toUpsert.name + ":" + toUpsert.value + " " + hashedParam.algorithm.toString());
 			return true;
 		} catch (SQLException e) {
 			stdErr.println(e.getMessage());
 			return false;
+		}
+	}
+	
+	public String exists(ParameterHash hashedParam) {
+		//Want to update if param_name+hashalgo exists, insert if not
+		try {
+			if (conn == null) {
+				conn = getConnection();
+				}
+			//insert a hash in db for all observedHashTypes
+			pstmt = conn.prepareStatement(hashCheck);
+			pstmt.setString(1, hashedParam.hashedValue);
+			stdOut.println("Searching DB for: " + hashedParam.hashedValue);
+			ResultSet rs = pstmt.executeQuery();
+			String results = rs.getString("hashAlgo");
+			//if result, return SHA1:test@email.com
+			if(results != null && !results.isEmpty()) {
+				stdOut.println("FOUND MATCH FOR: " + hashedParam.hashedValue + " is " + rs.getString("value"));
+				return results + ":" + rs.getString("value");
+			}
+			else
+				return null;
+		} catch (SQLException e) {
+			stdErr.println(e.getMessage());
+			return null;
 		}
 	}
 

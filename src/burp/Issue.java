@@ -3,7 +3,7 @@ package burp;
 import java.net.URL;
 
 /**
- * Implementation of the IScanIssue interface.
+ * Implementation of the {@link IScanIssue} interface.
  */
 class Issue implements IScanIssue {
 	private IHttpService httpService;
@@ -17,11 +17,8 @@ class Issue implements IScanIssue {
 	private String issueBackground;
 	private String remediationBackground;
 
-	// TODO: finish constructor and remove all null returns
-	public Issue(IHttpService httpService, URL url,
-			IHttpRequestResponse[] httpMessages, String issueName,
-			String issueDetail, String severity, String confidence,
-			String remediationDetail, String issueBackground,
+	public Issue(IHttpService httpService, URL url, IHttpRequestResponse[] httpMessages, String issueName,
+			String issueDetail, String severity, String confidence, String remediationDetail, String issueBackground,
 			String remediationBackground) {
 		this.httpService = httpService;
 		this.url = url;
@@ -89,11 +86,10 @@ class Issue implements IScanIssue {
 	public IHttpService getHttpService() {
 		return this.httpService;
 	}
-	
-	public String toString()
-	{
-		return "Name: " + this.issueName + " URL: " + this.url + " Severity: " + this.severity + " Confidence: " 
-				+ this.confidence + " Detail: " + this.issueDetail + " Remediation: " + this.remediationDetail 
+
+	public String toString() {
+		return "Name: " + this.issueName + " URL: " + this.url + " Severity: " + this.severity + " Confidence: "
+				+ this.confidence + " Detail: " + this.issueDetail + " Remediation: " + this.remediationDetail
 				+ " Background: " + this.issueBackground + " Remediation Background: " + this.remediationBackground;
 	}
 

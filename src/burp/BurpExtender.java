@@ -15,6 +15,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * This is the "main" class of the extension. Burp begins by
+ * calling {@link BurpExtender#registerExtenderCallbacks(IBurpExtenderCallbacks)}.
+ */
 public class BurpExtender implements IBurpExtender, IScannerCheck 
 {
 	public static final String extensionName = "burp-hash";

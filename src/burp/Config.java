@@ -10,7 +10,8 @@ import java.io.Serializable;
 import java.util.Base64;
 
 /**
- * Manages settings for the extension. It's crude, but it works.
+ * Manages settings for the extension. It's crude, but it works. This object is serialized
+ * and stored as a string using Burp's extension settings functionality.
  */
 class Config implements Serializable {
 	private static final long serialVersionUID = 1L;

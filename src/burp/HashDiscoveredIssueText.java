@@ -1,5 +1,8 @@
 package burp;
 
+/**
+ * Generates text used in creating Burp Scanner issues.
+ */
 public class HashDiscoveredIssueText 
 {
 	public String Name, Details, Severity, Confidence, RemediationDetails, Background, RemediationBackground;

@@ -22,6 +22,11 @@ import javax.swing.JSeparator;
 import javax.swing.JTextField;
 import javax.swing.LayoutStyle.ComponentPlacement;
 
+/**
+ * Creates a tab in the Burp GUI for changing settings.
+ *
+ * @author sjohnson
+ */
 public class GuiTab implements ITab {
 	private JButton btnReinitDatabase;
 	private JButton btnResetDefaults;

@@ -4,6 +4,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Base64;
 
+/**
+ * Stores found strings that appear to be hashes.
+ */
 public class HashRecord
 {
 	boolean found = false;

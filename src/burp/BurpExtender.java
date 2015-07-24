@@ -97,6 +97,32 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		}
 	}
 
+	private void createHashMatchesIssues(IHttpRequestResponse baseRequestResponse, HashRecord hash, String PlainText)
+	{
+		IHttpRequestResponse[] message;
+		if (hash.searchType.equals(SearchType.REQUEST))
+		{ //apply markers to the request
+			message = new IHttpRequestResponse[] { callbacks.applyMarkers(baseRequestResponse, hash.markers, null) };
+		}
+		else
+		{ //apply markers to the response
+			message = new IHttpRequestResponse[] { callbacks.applyMarkers(baseRequestResponse, null, hash.markers) };
+		}
+		HashMatchesIssueText issueText = new HashMatchesIssueText(hash, PlainText);
+		Issue issue = new Issue(
+                baseRequestResponse.getHttpService(),
+                helpers.analyzeRequest(baseRequestResponse).getUrl(),
+                message,
+                issueText.Name,
+                issueText.Details,
+                issueText.Severity,
+                issueText.Confidence,
+                issueText.RemediationDetails,
+                issueText.Background,
+                issueText.RemediationBackground);
+		issues.add(issue);
+	}
+	
 	@Override
 	public List<IScanIssue> doActiveScan(IHttpRequestResponse baseRequestResponse, IScannerInsertionPoint insertionPoint)
 	{
@@ -142,7 +168,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		List<Issue> issues = new ArrayList<>();
 		List<Item> items = getParameterItems(baseRequestResponse);
 		generateParameterHashes(items);
-		issues.addAll(findMatchingHashes());
+		issues.addAll(findMatchingHashes(baseRequestResponse));
 		return issues;
 	}
 
@@ -175,7 +201,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		saveHashes();
 	}
 
-	private List<Issue> findMatchingHashes()
+	private List<Issue> findMatchingHashes(IHttpRequestResponse baseRequestResponse)
 	{
 		List<Issue> issues = new ArrayList<>();
 		//TODO: improve logic to compare hashed params with discovered hashes
@@ -187,6 +213,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			String foundHit = db.exists(tempPH);
 			if(foundHit != null && !foundHit.isEmpty()) {
 				stdOut.println("!!!Matching Parameter!!!:"+foundHit);
+				createHashMatchesIssues(baseRequestResponse, hash, foundHit);
 			}
 			/*
 			for(Parameter param : parameters)

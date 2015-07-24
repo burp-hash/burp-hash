@@ -156,7 +156,7 @@ public class Database {
 	}
 	
 	public String exists(ParameterHash hashedParam) {
-		//Want to update if param_name+hashalgo exists, insert if not
+		// return parameter value if the hash already exists
 		try {
 			if (conn == null) {
 				conn = getConnection();

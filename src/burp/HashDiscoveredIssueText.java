@@ -28,7 +28,7 @@ public class HashDiscoveredIssueText
 			Severity = "Medium";
 			if (hash.algorithm.equals(HashAlgorithmName.MD5))
 			{
-				Severity = "High";
+				Severity = "Medium";
 			}
 			RemediationDetails = "Consider upgrading to a stronger cryptographic hash algorithm, such as SHA-256.";
 			Background = "This cryptographic algorithm is considered to be weak and should be phased out.\n\n" +

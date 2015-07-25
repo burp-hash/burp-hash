@@ -96,8 +96,9 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			issues.add(issue);
 		}
 	}
-
+/*
 	private void createHashMatchesIssues(IHttpRequestResponse baseRequestResponse, HashRecord hash, String PlainText)
+		//might not need this the way it's currently implemented
 	{
 		IHttpRequestResponse[] message;
 		if (hash.searchType.equals(SearchType.REQUEST))
@@ -122,6 +123,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
                 issueText.RemediationBackground);
 		issues.add(issue);
 	}
+*/
 	
 	@Override
 	public List<IScanIssue> doActiveScan(IHttpRequestResponse baseRequestResponse, IScannerInsertionPoint insertionPoint)
@@ -213,7 +215,30 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			String foundHit = db.exists(tempPH);
 			if(foundHit != null && !foundHit.isEmpty()) {
 				stdOut.println("!!!Matching Parameter!!!:"+foundHit);
-				createHashMatchesIssues(baseRequestResponse, hash, foundHit);
+				IHttpRequestResponse[] message;
+				if (hash.searchType.equals(SearchType.REQUEST))
+				{ //apply markers to the request
+					message = new IHttpRequestResponse[] { callbacks.applyMarkers(baseRequestResponse, hash.markers, null) };
+				}
+				else
+				{ //apply markers to the response
+					message = new IHttpRequestResponse[] { callbacks.applyMarkers(baseRequestResponse, null, hash.markers) };
+				}
+				
+				HashMatchesIssueText issueText = new HashMatchesIssueText(hash, foundHit);
+				Issue issue = new Issue(
+		                baseRequestResponse.getHttpService(),
+		                helpers.analyzeRequest(baseRequestResponse).getUrl(),
+		                message,
+		                issueText.Name,
+		                issueText.Details,
+		                issueText.Severity,
+		                issueText.Confidence,
+		                issueText.RemediationDetails,
+		                issueText.Background,
+		                issueText.RemediationBackground);
+				issues.add(issue);
+				//createHashMatchesIssues(baseRequestResponse, hash, foundHit);
 			}
 			/*
 			for(Parameter param : parameters)

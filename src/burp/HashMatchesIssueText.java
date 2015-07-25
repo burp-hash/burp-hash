@@ -19,6 +19,7 @@ public class HashMatchesIssueText
 		Details = "The " + source + " contains a <b>" + hash.algorithm + "</b> hashed value that matches an observed parameter\n" 
 				+ plainTextValue + " becomes " + hash.getNormalizedRecord() + " when hashed.";
 		Confidence = "Firm";
+		RemediationDetails = "SALT YO' HASHES, FOOL!";
 		RemediationBackground = "This was found by the " + BurpExtender.extensionName + 
 				" extension: <a href=\"" + BurpExtender.extensionUrl + "\">" + BurpExtender.extensionUrl + "</a>";	
 	}	

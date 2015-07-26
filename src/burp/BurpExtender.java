@@ -500,12 +500,12 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		if(config.isMd5Enabled) hashAlgorithms.add(new HashAlgorithm(32, HashAlgorithmName.MD5));
 	}
 
-	private void loadHashedParameters()
+	void loadHashedParameters()
 	{
 		//TODO: Implement retrieving hashed params from disk later (!MVP)
 	}
 
-	private void loadHashes()
+	void loadHashes()
 	{
 		//TODO: Implement retrieving hashes from disk later (!MVP)
 	}

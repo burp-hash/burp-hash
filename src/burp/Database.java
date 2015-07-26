@@ -15,6 +15,7 @@ import org.sqlite.SQLiteConfig;
  * Handles SQLite database access
  */
 public class Database {
+	private BurpExtender burpExtender;
 	private Config config;
 	private Connection conn = null;
 	private IBurpExtenderCallbacks callbacks;
@@ -37,6 +38,7 @@ public class Database {
 	//Sorry for the flat DB, upserting items and deleting foreign keys in multiple tables sounds like trouble to me
 	private final String sql_createTable = "CREATE TABLE params (name TEXT NOT NULL, value TEXT NOT NULL, hashAlgo TEXT NOT NULL, hash TEXT NOT NULL, PRIMARY KEY(value, hashAlgo));";
 	public Database(BurpExtender b) {
+		burpExtender = b;
 		callbacks = b.getCallbacks();
 		config = b.getConfig();
 		stdErr = b.getStdErr();
@@ -55,6 +57,8 @@ public class Database {
 	public void changeFile() {
 		close();
 		conn = getConnection();
+		burpExtender.loadHashes();
+		burpExtender.loadHashedParameters();
 	}
 
 	/**

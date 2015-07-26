@@ -456,14 +456,8 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			e.printStackTrace(stdErr);
 		}
 
-		//Build in reverse order (largest first) for searching:
-		if(config.isSha512Enabled) hashAlgorithms.add(new HashAlgorithm(128, HashAlgorithmName.SHA_512));
-		if(config.isSha384Enabled) hashAlgorithms.add(new HashAlgorithm(96, HashAlgorithmName.SHA_384));
-		if(config.isSha256Enabled) hashAlgorithms.add(new HashAlgorithm(64, HashAlgorithmName.SHA_256));
-		if(config.isSha224Enabled) hashAlgorithms.add(new HashAlgorithm(56, HashAlgorithmName.SHA_224));
-		if(config.isSha1Enabled) hashAlgorithms.add(new HashAlgorithm(40, HashAlgorithmName.SHA_1));
-		if(config.isMd5Enabled) hashAlgorithms.add(new HashAlgorithm(32, HashAlgorithmName.MD5));
-	
+		loadHashAlgorithms();
+
 		//Load persisted hashes/parameters for resuming testing from a previous test:
 		loadHashes();
 		loadHashedParameters();
@@ -492,6 +486,16 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	private void loadGui() {
 		guiTab = new GuiTab(this);
 		callbacks.addSuiteTab(guiTab);
+	}
+
+	void loadHashAlgorithms() {
+		hashAlgorithms = new ArrayList<HashAlgorithm>();
+		if(config.isSha512Enabled) hashAlgorithms.add(new HashAlgorithm(128, HashAlgorithmName.SHA_512));
+		if(config.isSha384Enabled) hashAlgorithms.add(new HashAlgorithm(96, HashAlgorithmName.SHA_384));
+		if(config.isSha256Enabled) hashAlgorithms.add(new HashAlgorithm(64, HashAlgorithmName.SHA_256));
+		if(config.isSha224Enabled) hashAlgorithms.add(new HashAlgorithm(56, HashAlgorithmName.SHA_224));
+		if(config.isSha1Enabled) hashAlgorithms.add(new HashAlgorithm(40, HashAlgorithmName.SHA_1));
+		if(config.isMd5Enabled) hashAlgorithms.add(new HashAlgorithm(32, HashAlgorithmName.MD5));
 	}
 
 	private void loadHashedParameters()

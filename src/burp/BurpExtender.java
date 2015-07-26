@@ -454,8 +454,10 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		{
 			stdErr.println("Error loading config: " + e.getMessage());
 			e.printStackTrace(stdErr);
+			return;
 		}
 
+		// populate hashAlgorithms based on settings in config
 		loadHashAlgorithms();
 
 		//Load persisted hashes/parameters for resuming testing from a previous test:

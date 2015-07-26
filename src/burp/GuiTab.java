@@ -28,6 +28,7 @@ import javax.swing.LayoutStyle.ComponentPlacement;
  * @author sjohnson
  */
 public class GuiTab implements ITab {
+	private BurpExtender burpExtender;
 	private JButton btnReinitDatabase;
 	private JButton btnResetDefaults;
 	private JButton btnSelectFile;
@@ -61,6 +62,7 @@ public class GuiTab implements ITab {
 	private JTextField txtFileName;
 
 	public GuiTab(BurpExtender b) {
+		burpExtender = b;
 		callbacks = b.getCallbacks();
 		config = b.getConfig();
 		db = b.getDatabase();
@@ -94,31 +96,37 @@ public class GuiTab implements ITab {
 	private void chkMd5ActionPerformed(ActionEvent evt) {
 		config.isMd5Enabled = !config.isMd5Enabled;
 		config.save();
+		burpExtender.loadHashAlgorithms();
 	}
 
 	private void chkSha1ActionPerformed(ActionEvent evt) {
 		config.isSha1Enabled = !config.isSha1Enabled;
 		config.save();
+		burpExtender.loadHashAlgorithms();
 	}
 
 	private void chkSha224ActionPerformed(ActionEvent evt) {
 		config.isSha224Enabled = !config.isSha224Enabled;
 		config.save();
+		burpExtender.loadHashAlgorithms();
 	}
 
 	private void chkSha256ActionPerformed(ActionEvent evt) {
 		config.isSha256Enabled = !config.isSha256Enabled;
 		config.save();
+		burpExtender.loadHashAlgorithms();
 	}
 
 	private void chkSha384ActionPerformed(ActionEvent evt) {
 		config.isSha384Enabled = !config.isSha384Enabled;
 		config.save();
+		burpExtender.loadHashAlgorithms();
 	}
 
 	private void chkSha512ActionPerformed(ActionEvent evt) {
 		config.isSha512Enabled = !config.isSha512Enabled;
 		config.save();
+		burpExtender.loadHashAlgorithms();
 	}
 
 	@Override

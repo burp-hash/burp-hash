@@ -20,7 +20,7 @@ class Config implements Serializable {
 	 * load saved config if it exists
 	 * otherwise return default config
 	 */
-	public static Config load(BurpExtender b) throws Exception {
+	static Config load(BurpExtender b) throws Exception {
 		IBurpExtenderCallbacks c = b.getCallbacks();
 		String encodedConfig = c.loadExtensionSetting(BurpExtender.extensionName);
 		if (encodedConfig == null) {
@@ -44,14 +44,14 @@ class Config implements Serializable {
 	// variables below are the extension settings
 	// TODO: convert the list below to use an EnumSet with the
 	// <HashAlgorithmName> enum:
-	public String databaseFilename;
-	public boolean isMd5Enabled;
-	public boolean isSha1Enabled;
-	public boolean isSha224Enabled;
-	public boolean isSha256Enabled;
-	public boolean isSha384Enabled;
-	public boolean isSha512Enabled;
-	public boolean reportHashesOnly;
+	String databaseFilename;
+	boolean isMd5Enabled;
+	boolean isSha1Enabled;
+	boolean isSha224Enabled;
+	boolean isSha256Enabled;
+	boolean isSha384Enabled;
+	boolean isSha512Enabled;
+	boolean reportHashesOnly;
 
 	/**
 	 * constructor used only when saved config is not found
@@ -67,7 +67,7 @@ class Config implements Serializable {
 	/**
 	 * reset to default config
 	 */
-	public void reset() {
+	void reset() {
 		callbacks.saveExtensionSetting(BurpExtender.extensionName, null);
 		setDefaults();
 	}
@@ -75,7 +75,7 @@ class Config implements Serializable {
 	/**
 	 * save serialized Config object into Burp extension settings
 	 */
-	public void save() {
+	void save() {
 		ByteArrayOutputStream bytes = new ByteArrayOutputStream();
 		try {
 			ObjectOutputStream out = new ObjectOutputStream(bytes);

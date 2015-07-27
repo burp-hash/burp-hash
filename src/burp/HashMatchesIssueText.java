@@ -3,11 +3,11 @@ package burp;
 /**
  * Generates text used in creating Burp Scanner issues.
  */
-public class HashMatchesIssueText 
+class HashMatchesIssueText
 {
-	public String Name, Details, Severity, Confidence, RemediationDetails, Background, RemediationBackground;
+	String Name, Details, Severity, Confidence, RemediationDetails, Background, RemediationBackground;
 
-	public HashMatchesIssueText(HashRecord hash, String plainTextValue)
+	HashMatchesIssueText(HashRecord hash, String plainTextValue)
 	{
 		Severity = "High";
 		Name = hash.algorithm + " Hash Match";

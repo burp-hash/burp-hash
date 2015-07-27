@@ -1,6 +1,6 @@
 package burp;
 
-public enum EncodingType 
+enum EncodingType
 { 
 	Hex, Base64 
 };

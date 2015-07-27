@@ -1,8 +1,8 @@
 package burp;
 
-public class Utilities
+class Utilities
 {
-	public static String byteArrayToHex(byte[] bytes) 
+	static String byteArrayToHex(byte[] bytes)
 	{
 		   StringBuilder sb = new StringBuilder(bytes.length * 2);
 		   for(byte b: bytes)

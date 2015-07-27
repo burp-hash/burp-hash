@@ -17,7 +17,7 @@ class Issue implements IScanIssue {
 	private String issueBackground;
 	private String remediationBackground;
 
-	public Issue(IHttpService httpService, URL url, IHttpRequestResponse[] httpMessages, String issueName,
+	Issue(IHttpService httpService, URL url, IHttpRequestResponse[] httpMessages, String issueName,
 			String issueDetail, String severity, String confidence, String remediationDetail, String issueBackground,
 			String remediationBackground) {
 		this.httpService = httpService;
@@ -87,6 +87,7 @@ class Issue implements IScanIssue {
 		return this.httpService;
 	}
 
+	@Override
 	public String toString() {
 		return "Name: " + this.issueName + " URL: " + this.url + " Severity: " + this.severity + " Confidence: "
 				+ this.confidence + " Detail: " + this.issueDetail + " Remediation: " + this.remediationDetail

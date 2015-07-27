@@ -3,11 +3,11 @@ package burp;
 /**
  * Generates text used in creating Burp Scanner issues.
  */
-public class HashDiscoveredIssueText 
+class HashDiscoveredIssueText
 {
-	public String Name, Details, Severity, Confidence, RemediationDetails, Background, RemediationBackground;
+	String Name, Details, Severity, Confidence, RemediationDetails, Background, RemediationBackground;
 
-	public HashDiscoveredIssueText(HashRecord hash)
+	HashDiscoveredIssueText(HashRecord hash)
 	{
 		Name = hash.algorithm + " Hash Discovered";
 		String source = SearchType.RESPONSE.toString();

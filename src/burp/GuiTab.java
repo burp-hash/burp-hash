@@ -27,7 +27,7 @@ import javax.swing.LayoutStyle.ComponentPlacement;
  *
  * @author sjohnson
  */
-public class GuiTab implements ITab {
+class GuiTab implements ITab {
 	private BurpExtender burpExtender;
 	private JButton btnReinitDatabase;
 	private JButton btnResetDefaults;
@@ -61,7 +61,7 @@ public class GuiTab implements ITab {
 	private PrintWriter stdOut;
 	private JTextField txtFileName;
 
-	public GuiTab(BurpExtender b) {
+	GuiTab(BurpExtender b) {
 		burpExtender = b;
 		callbacks = b.getCallbacks();
 		config = b.getConfig();

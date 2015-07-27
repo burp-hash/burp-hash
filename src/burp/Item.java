@@ -12,21 +12,21 @@ class Item implements ICookie, IParameter {
 	private int type;
 	private Object item;
 
-	public Item(IParameter p) {
+	Item(IParameter p) {
 		this.type = PARAMETER;
 		this.item = p;
 	}
 
-	public Item(ICookie c) {
+	Item(ICookie c) {
 		this.type = COOKIE;
 		this.item = c;
 	}
 
-	public Object getItem() {
+	Object getItem() {
 		return item;
 	}
 
-	public int getItemType() {
+	int getItemType() {
 		return type;
 	}
 

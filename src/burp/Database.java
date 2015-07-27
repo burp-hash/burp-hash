@@ -14,7 +14,7 @@ import org.sqlite.SQLiteConfig;
 /**
  * Handles SQLite database access
  */
-public class Database {
+class Database {
 	private BurpExtender burpExtender;
 	private Config config;
 	private Connection conn = null;
@@ -37,7 +37,7 @@ public class Database {
 	//Primary key is parametervalue+hashalgo, EG: test@email.com+SHA256 and test@email.com+MD5 would be two diff records
 	//Sorry for the flat DB, upserting items and deleting foreign keys in multiple tables sounds like trouble to me
 	private final String sql_createTable = "CREATE TABLE params (name TEXT NOT NULL, value TEXT NOT NULL, hashAlgo TEXT NOT NULL, hash TEXT NOT NULL, PRIMARY KEY(value, hashAlgo));";
-	public Database(BurpExtender b) {
+	Database(BurpExtender b) {
 		burpExtender = b;
 		callbacks = b.getCallbacks();
 		config = b.getConfig();
@@ -54,7 +54,7 @@ public class Database {
 	/**
 	 * open a different database file after a config change
 	 */
-	public void changeFile() {
+	void changeFile() {
 		close();
 		conn = getConnection();
 		burpExtender.loadHashes();
@@ -64,7 +64,7 @@ public class Database {
 	/**
 	 * close the database connection
 	 */
-	public boolean close() {
+	boolean close() {
 		try {
 			if (conn != null)
 				conn.close();
@@ -110,7 +110,7 @@ public class Database {
 	 * initialize the database
 	 * TODO: drop/create all necessary tables (params, hashes, etc.)
 	 */
-	public boolean init() {
+	boolean init() {
 		Statement stmt = null;
 		try {
 			if (conn == null) {
@@ -138,7 +138,7 @@ public class Database {
 				{
 					ParameterHash hash = new ParameterHash();
 	 */
-	public boolean upsert(Parameter toUpsert, ParameterHash hashedParam) {
+	boolean upsert(Parameter toUpsert, ParameterHash hashedParam) {
 		//Want to update if param_name+hashalgo exists, insert if not
 		try {
 			if (conn == null) {
@@ -159,7 +159,7 @@ public class Database {
 		}
 	}
 	
-	public String exists(ParameterHash hashedParam) {
+	String exists(ParameterHash hashedParam) {
 		// return parameter value if the hash already exists
 		try {
 			if (conn == null) {
@@ -187,7 +187,7 @@ public class Database {
 	/**
 	 * TODO: verify presence of all tables? (params, hashes, etc.)
 	 */
-	public boolean verify() {
+	boolean verify() {
 		Statement stmt = null;
 		ResultSet rs = null;
 

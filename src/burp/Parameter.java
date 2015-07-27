@@ -6,8 +6,8 @@ import java.util.List;
 /**
  * Stores parameters and a list of their {@link ParameterHash}es.
  */
-public class Parameter
+class Parameter
 {
-	public String name = "", value = "";
-	public List<ParameterHash> parameterHashes = new ArrayList<ParameterHash>();	
+	String name = "", value = "";
+	List<ParameterHash> parameterHashes = new ArrayList<>();
 }

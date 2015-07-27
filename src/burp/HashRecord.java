@@ -7,7 +7,7 @@ import java.util.Base64;
 /**
  * Stores found strings that appear to be hashes.
  */
-public class HashRecord
+class HashRecord
 {
 	boolean found = false;
 	List<int[]> markers = new ArrayList<>();
@@ -16,7 +16,7 @@ public class HashRecord
 	EncodingType encodingType;
 	SearchType searchType;
 
-	public String getNormalizedRecord() //TODO: normalize h:e:x, 0xFF
+	String getNormalizedRecord() //TODO: normalize h:e:x, 0xFF
 	{
 		if (encodingType.equals(EncodingType.Base64))
 		{
@@ -25,6 +25,7 @@ public class HashRecord
 		return record.toLowerCase(); 
 	}
 	
+	@Override
 	public String toString()
 	{
 		if (!encodingType.equals(EncodingType.Hex))
@@ -34,7 +35,7 @@ public class HashRecord
 		return algorithm + " Hash " + record;
 	}
 	
-	public void sortMarkers()
+	void sortMarkers()
 	{
 		List<int[]> sorted = new ArrayList<>();
 		int[] previous = { -1, -1 };

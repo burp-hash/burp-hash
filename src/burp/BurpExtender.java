@@ -21,13 +21,13 @@ import java.util.regex.Pattern;
  */
 public class BurpExtender implements IBurpExtender, IScannerCheck 
 {
-	public static final String extensionName = "burp-hash";
-	public static final String extensionUrl = "https://burp-hash.github.io/";
-	private static List<HashAlgorithm> hashAlgorithms = new ArrayList<>();
+	static final String extensionName = "burp-hash";
+	static final String extensionUrl = "https://burp-hash.github.io/";
+	private static List<HashAlgorithm> hashAlgorithms;
 	private static Map<String, String> hashdb = new ConcurrentHashMap<>();
 	//TODO: Use this to determine which hash algos to use on params for hash guessing:
-	public static EnumSet<HashAlgorithmName> hashTracker = EnumSet.noneOf(HashAlgorithmName.class);
-	public Pattern b64 = Pattern.compile("(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?");
+	static EnumSet<HashAlgorithmName> hashTracker = EnumSet.noneOf(HashAlgorithmName.class);
+	Pattern b64 = Pattern.compile("(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?");
 	private IBurpExtenderCallbacks callbacks;
 	private Config config;
 	private Database db;
@@ -491,7 +491,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	}
 
 	void loadHashAlgorithms() {
-		hashAlgorithms = new ArrayList<HashAlgorithm>();
+		hashAlgorithms = new ArrayList<>();
 		if(config.isSha512Enabled) hashAlgorithms.add(new HashAlgorithm(128, HashAlgorithmName.SHA_512));
 		if(config.isSha384Enabled) hashAlgorithms.add(new HashAlgorithm(96, HashAlgorithmName.SHA_384));
 		if(config.isSha256Enabled) hashAlgorithms.add(new HashAlgorithm(64, HashAlgorithmName.SHA_256));

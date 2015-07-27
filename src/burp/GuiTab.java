@@ -85,7 +85,7 @@ class GuiTab implements ITab {
 
 	private void btnSelectFileActionPerformed(ActionEvent evt) {
 		File dbFile = selectDatabaseFile();
-		if (dbFile != null) {
+		if (dbFile != null && !dbFile.getAbsolutePath().equals(config.databaseFilename)) {
 			config.databaseFilename = dbFile.getAbsolutePath();
 			config.save();
 			txtFileName.setText(config.databaseFilename);
@@ -179,34 +179,22 @@ class GuiTab implements ITab {
 		lblSelectAlgorithm.setText("Select hash algorithms to enable.");
 
 		chkMd5.setText("MD5");
-		chkMd5.addActionListener(evt -> {
-			chkMd5ActionPerformed(evt);
-		});
+		chkMd5.addActionListener(this::chkMd5ActionPerformed);
 
 		chkSha1.setText("SHA-1");
-		chkSha1.addActionListener(evt -> {
-			chkSha1ActionPerformed(evt);
-		});
+		chkSha1.addActionListener(this::chkSha1ActionPerformed);
 
 		chkSha256.setText("SHA-256");
-		chkSha256.addActionListener(evt -> {
-			chkSha256ActionPerformed(evt);
-		});
+		chkSha256.addActionListener(this::chkSha256ActionPerformed);
 
 		chkSha224.setText("SHA-224");
-		chkSha224.addActionListener(evt -> {
-			chkSha224ActionPerformed(evt);
-		});
+		chkSha224.addActionListener(this::chkSha224ActionPerformed);
 
 		chkSha384.setText("SHA-384");
-		chkSha384.addActionListener(evt -> {
-			chkSha384ActionPerformed(evt);
-		});
+		chkSha384.addActionListener(this::chkSha384ActionPerformed);
 
 		chkSha512.setText("SHA-512");
-		chkSha512.addActionListener(evt -> {
-			chkSha512ActionPerformed(evt);
-		});
+		chkSha512.addActionListener(this::chkSha512ActionPerformed);
 
 		GroupLayout pnlAlgorithmLayout = new GroupLayout(pnlAlgorithm);
 		pnlAlgorithm.setLayout(pnlAlgorithmLayout);
@@ -284,15 +272,11 @@ class GuiTab implements ITab {
 
 		buttonGroup1.add(rbReport);
 		rbReport.setText("Report Only");
-		rbReport.addActionListener(evt -> {
-				rbReportActionPerformed(evt);
-		});
+		rbReport.addActionListener(this::rbReportActionPerformed);
 
 		buttonGroup1.add(rbMatch);
 		rbMatch.setText("Match and Report Hashes");
-		rbMatch.addActionListener(evt -> {
-				rbMatchActionPerformed(evt);
-		});
+		rbMatch.addActionListener(this::rbMatchActionPerformed);
 
 		lblBehavior.setText("Select hashing behavior.");
 
@@ -341,14 +325,10 @@ class GuiTab implements ITab {
 										Short.MAX_VALUE)));
 
 		btnSelectFile.setText("Select file ...");
-		btnSelectFile.addActionListener(evt -> {
-				btnSelectFileActionPerformed(evt);
-		});
+		btnSelectFile.addActionListener(this::btnSelectFileActionPerformed);
 
 		txtFileName.setEnabled(false);
-		txtFileName.addActionListener(evt -> {
-				txtFileNameActionPerformed(evt);
-		});
+		txtFileName.addActionListener(this::btnSelectFileActionPerformed);
 
 		lblSelectFile
 				.setText("Select the output file to which hashes and parameters will be saved.");
@@ -407,14 +387,10 @@ class GuiTab implements ITab {
 												Short.MAX_VALUE)));
 
 		btnReinitDatabase.setText("Reinitialize Database");
-		btnReinitDatabase.addActionListener(evt -> {
-				btnReinitDatabaseActionPerformed(evt);
-		});
+		btnReinitDatabase.addActionListener(this::btnReinitDatabaseActionPerformed);
 
 		btnResetDefaults.setText("Reset Defaults");
-		btnResetDefaults.addActionListener(evt -> {
-				btnResetDefaultsActionPerformed(evt);
-		});
+		btnResetDefaults.addActionListener(this::btnResetDefaultsActionPerformed);
 
 		GroupLayout pnlBottomButtonsLayout = new GroupLayout(pnlBottomButtons);
 		pnlBottomButtons.setLayout(pnlBottomButtonsLayout);
@@ -583,9 +559,5 @@ class GuiTab implements ITab {
 			return fc.getSelectedFile();
 		}
 		return null;
-	}
-
-	private void txtFileNameActionPerformed(ActionEvent evt) {
-		btnSelectFileActionPerformed(evt);
 	}
 }

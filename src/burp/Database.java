@@ -25,18 +25,16 @@ class Database {
 
 	private final String connPrefix = "jdbc:sqlite:";
 	private final String sql_tableCheck = "SELECT name FROM sqlite_master WHERE type='table' AND name='params';";
-	private final String hashCheck = "SELECT * FROM params WHERE hash=?;";
-	private final String sql_dropTable = "DROP TABLE IF EXISTS params;";
-	private final String insert_statement = "INSERT OR REPLACE INTO params(name, value, hashAlgo, hash) VALUES (?, ?, ?, ?)";
-	/*TODO: design table schemas. So we have parameter name, value, hashedvalue for each observed hash type
-		    I guess the big question is, do we want to base it on 
-		    	unique parameter value [would grow huge if the site uses CSRF tokens for example]
-		    	or unique parameter name[csrf_token would have one record that would be updated each time]
-		    	I'm opting for the former to keep the db smaller*/
-	// REF: https://www.sqlite.org/datatype3.html
-	//Primary key is parametervalue+hashalgo, EG: test@email.com+SHA256 and test@email.com+MD5 would be two diff records
-	//Sorry for the flat DB, upserting items and deleting foreign keys in multiple tables sounds like trouble to me
-	private final String sql_createTable = "CREATE TABLE params (name TEXT NOT NULL, value TEXT NOT NULL, hashAlgo TEXT NOT NULL, hash TEXT NOT NULL, PRIMARY KEY(value, hashAlgo));";
+	private final String sql_dropTables = "DROP TABLE IF EXISTS params; DROP TABLE IF EXISTS hashes; DROP TABLE IF EXISTS algorithm;";
+	private final String sql_createAlgoTable = "CREATE TABLE algorithms (ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, Name TEXT NOT NULL)";
+	private final String sql_createParamTable = "CREATE TABLE params (ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name TEXT NOT NULL, value TEXT NOT NULL, url TEXT)";
+	private final String sql_createHashTable = "CREATE TABLE hashes (ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, algorithmID INTEGER NOT NULL, paramID INTEGER NOT NULL, value TEXT NOT NULL)";
+	private final String sql_insertAlgo = "INSERT OR REPLACE INTO algorithms(name) VALUES (?)";
+	private final String sql_insertParams = "INSERT OR REPLACE INTO params(name, value, url) VALUES (?, ?, ?)";
+	private final String sql_insertHashes = "INSERT OR REPLACE INTO hashes(algorithmID, paramID, value) VALUES (?, ?, ?)";
+	private final String sql_hashCheck = "SELECT * FROM params WHERE hash=?;";
+
+
 	Database(BurpExtender b) {
 		burpExtender = b;
 		callbacks = b.getCallbacks();
@@ -118,8 +116,10 @@ class Database {
 			}
 			stmt = conn.createStatement();
 			stmt.setQueryTimeout(30);
-			stmt.executeUpdate(sql_dropTable);
-			stmt.executeUpdate(sql_createTable);
+			stmt.executeUpdate(sql_dropTables);
+			stmt.executeUpdate(sql_createAlgoTable);
+			stmt.executeUpdate(sql_createParamTable);
+			stmt.executeUpdate(sql_createHashTable);
 			return true;
 		} catch (SQLException e) {
 			stdErr.println(e.getMessage());
@@ -145,7 +145,7 @@ class Database {
 				conn = getConnection();
 				}
 			//insert a hash in db for all observedHashTypes
-			pstmt = conn.prepareStatement(insert_statement);
+			pstmt = conn.prepareStatement(sql_insertParams);
 			pstmt.setString(1, toUpsert.name);
 			pstmt.setString(2, toUpsert.value);
 			pstmt.setString(3, hashedParam.algorithm.toString());
@@ -166,7 +166,7 @@ class Database {
 				conn = getConnection();
 				}
 			//insert a hash in db for all observedHashTypes
-			pstmt = conn.prepareStatement(hashCheck);
+			pstmt = conn.prepareStatement(sql_hashCheck);
 			pstmt.setString(1, hashedParam.hashedValue);
 			stdOut.println("Searching DB for: " + hashedParam.hashedValue);
 			ResultSet rs = pstmt.executeQuery();

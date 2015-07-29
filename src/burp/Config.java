@@ -95,6 +95,6 @@ class Config implements Serializable {
 	private void setDefaults() {
 		isMd5Enabled = isSha1Enabled = isSha256Enabled = true;
 		isSha224Enabled = isSha384Enabled = isSha512Enabled = reportHashesOnly = false;
-		databaseFilename = BurpExtender.extensionName + ".db";
+		databaseFilename = BurpExtender.extensionName + ".sqlite";
 	}
 }

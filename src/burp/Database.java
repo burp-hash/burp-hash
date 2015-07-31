@@ -8,8 +8,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Collections;
-import java.util.Set;
-
 import org.sqlite.SQLiteConfig;
 
 /**
@@ -177,10 +175,10 @@ class Database {
 				return 0;
 			}
 			int id = rs.getInt("id");
-			if (config.debug) stdOut.println("DB: Found " + paramValue + " in the db at index=" + id);
+			if (config.debug) stdOut.println("DB: Found '" + paramValue + "' in the db at index=" + id);
 			return id;
 		} catch (SQLException e) {
-			stdErr.println(e.getMessage());
+			stdErr.println("DB: SQLException: " + e);
 			return -1;
 		}
 	}
@@ -206,43 +204,43 @@ class Database {
 				return null;
 			}
 			String paramValue = rs.getString("value");
-			if (config.debug) stdOut.println("DB: Match " + paramValue + " for " + hash.getNormalizedRecord());
+			if (config.debug) stdOut.println("DB: Match '" + paramValue + "' for '" + hash.getNormalizedRecord() +"'");
 			return paramValue;
 		} catch (SQLException e) {
-			stdErr.println(e.getMessage());
+			stdErr.println("DB: SQLException: " + e);
 			return null;
 		}
 	}
 	
 	
-	boolean saveParamWithHash(Parameter param, ParameterHash hash) {
-		int paramId = getParamId(param.value);
+	boolean saveParamWithHash(ParameterWithHash parmWithHash) {
+		int paramId = getParamId(parmWithHash.parameter.value);
 		if (paramId <= 0)
 		{
-			stdOut.println("DB: Cannot save hash " + hash.hashedValue + " until the following parameter is saved " + param.value);
-			saveParam(param.value);
-			paramId = getParamId(param.value);
+			if (config.debug) stdOut.println("DB: Cannot save hash " + parmWithHash.hashedValue + " until the following parameter is saved " + parmWithHash.parameter.value);
+			saveParam(parmWithHash.parameter.value);
+			paramId = getParamId(parmWithHash.parameter.value);
 		}
 		try {
 			if (conn == null) {
 				conn = getConnection();
 			}
-			int algorithmId = config.getHashId(hash.algorithm);
+			int algorithmId = config.getHashId(parmWithHash.algorithm);
 			if (algorithmId <= 0)
 			{
-				stdErr.println("DB: Could not locate Algorithm ID for " + hash.algorithm);
+				stdErr.println("DB: Could not locate Algorithm ID for " + parmWithHash.algorithm);
 				return false;
 			}
 			String sql_insertHash = "INSERT OR REPLACE INTO hashes(algorithmID, paramID, value) VALUES (?, ?, ?)";
 			pstmt = conn.prepareStatement(sql_insertHash);
 			pstmt.setString(1, Integer.toString(algorithmId));
 			pstmt.setString(2, Integer.toString(paramId));
-			pstmt.setString(3, hash.hashedValue); 
+			pstmt.setString(3, parmWithHash.hashedValue); 
 			pstmt.executeUpdate();
-			stdOut.println("DB: Saving " + hash.algorithm.text + " hash in db: " + param.value + ":" + hash.hashedValue);
+			if (config.debug) stdOut.println("DB: Saved " + parmWithHash.algorithm.text + " hash in db: " + parmWithHash.parameter.value + ":" + parmWithHash.hashedValue);
 			return true;
 		} catch (SQLException e) {
-			stdErr.println(e.getMessage());
+			stdErr.println("DB: SQLException: " + e);
 			return false;
 		}
 	}
@@ -271,7 +269,7 @@ class Database {
 			stdOut.println("DB: Saving " + hash.algorithm.text + " hash of unknown source value in db: " + hash.getNormalizedRecord());
 			return true;
 		} catch (SQLException e) {
-			stdErr.println(e.getMessage());
+			stdErr.println("DB: SQLException: " + e);
 			return false;
 		}
 	}
@@ -291,10 +289,10 @@ class Database {
 				return 0;
 			}
 			int id = rs.getInt("id");
-			if (config.debug) stdOut.println("DB: Found " + hashedValue + " in the db at index=" + id);
+			if (config.debug) stdOut.println("DB: Found '" + hashedValue + "' in the db at index=" + id);
 			return id;
 		} catch (SQLException e) {
-			stdErr.println(e.getMessage());
+			stdErr.println("DB: SQLException: " + e);
 			return -1;
 		}
 	}
@@ -322,10 +320,10 @@ class Database {
 				return 0;
 			}
 			int id = rs.getInt("id");
-			if (config.debug) stdOut.println("DB: Found " + algorithmName.text + " hash for " + param.value + " in the db at index=" + id);
+			if (config.debug) stdOut.println("DB: Found " + algorithmName.text + " hash for '" + param.value + "' in the db at index=" + id);
 			return id;
 		} catch (SQLException e) {
-			stdErr.println(e.getMessage());
+			stdErr.println("DB: SQLException: " + e);
 			return -1;
 		}
 	}
@@ -351,7 +349,7 @@ class Database {
 			}
 			return x;
 		} catch (SQLException e) {
-			stdErr.println(e.getMessage());
+			stdErr.println("DB: SQLException: " + e);
 			return false;
 		}
 	}

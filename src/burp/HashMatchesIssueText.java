@@ -10,16 +10,17 @@ class HashMatchesIssueText
 	HashMatchesIssueText(HashRecord hash, String plainTextValue)
 	{
 		Severity = "High";
-		Name = hash.algorithm + " Hash Match";
+		Name = hash.algorithm.text + " Hash Match";
 		String source = SearchType.RESPONSE.toString();
 		if (hash.searchType.equals(SearchType.REQUEST))
 		{
-			source = "request";
+			source = SearchType.REQUEST.toString();
 		}
-		Details = "The " + source + " contains a <b>" + hash.algorithm + "</b> hashed value that matches an observed parameter\n" 
-				+ plainTextValue + " becomes " + hash.getNormalizedRecord() + " when hashed.";
+		Details = "The " + source + " contains a <b>" + hash.algorithm.text + "</b> hashed value that matches an observed parameter.<br><br>\n" 
+				+ "Observed hash: <b>" + hash.getNormalizedRecord() + "</b><br>"
+				+ "Source parameter: <b>" + plainTextValue + "</b><br>";
 		Confidence = "Firm";
-		RemediationDetails = "SALT YO' HASHES, FOOL!";
+		RemediationDetails = "Only use salted or keyed hashes for high security operations.";
 		RemediationBackground = "This was found by the " + BurpExtender.extensionName + 
 				" extension: <a href=\"" + BurpExtender.extensionUrl + "\">" + BurpExtender.extensionUrl + "</a>";	
 	}	

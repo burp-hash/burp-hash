@@ -9,7 +9,6 @@ import java.util.Base64;
  */
 class HashRecord
 {
-	boolean found = false;
 	List<int[]> markers = new ArrayList<>();
 	String record = "";
 	HashAlgorithmName algorithm;

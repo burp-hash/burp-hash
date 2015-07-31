@@ -3,7 +3,7 @@ package burp;
 import java.util.Date;
 
 /**
- * This implementation of {@link ICookie} and {@link IParameter} is used to homogenize the two
+ * This implementation of {@link ICookie}, {@link IParameter}, and {@link IBurpHashParameter} is used to homogenize the
  * object types during processing.
  */
 class Item implements ICookie, IParameter {

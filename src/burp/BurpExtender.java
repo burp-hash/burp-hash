@@ -181,21 +181,13 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			List<HashRecord> results = findRegex(s, hashAlgorithm.pattern, hashAlgorithm.name);
 			for(HashRecord result : results)
 			{
-				db.saveHash(result);
-				boolean found = false;
+				//Let the DB do the sorting of unique hash values:
+				boolean found = !db.saveHash(result);
 				result.searchType = searchType;
-
-				// don't add hash if it already exists in hashes
-				//TODO: we are losing multiple occurrences here; rework comparison?
 				//TODO: same hash string with different marker values gets lost
-				for (HashRecord hash : hashes)
-				{
-					if (hash.getNormalizedRecord().equals(result.getNormalizedRecord()))
-					{
-						found = true;
-						break;
-					}
-				}
+				// ^ Is this a problem? The intent here is to observe hashes of unknown origin. 
+				// Logging how many times we saw it and where is not as valuable as just logging 
+				// it so we can compare it to params we may hash and match later on.  Thoughts?  [TM]
 				if (found) continue;
 				hashes.add(result);
 				stdOut.println("Found " + hashAlgorithm.name.text + " hash: " + result.record + " URL: " + helpers.analyzeRequest(baseRequestResponse).getUrl());
@@ -407,20 +399,42 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	private List<Item> getParameterItems(IHttpRequestResponse baseRequestResponse)
 	{
 		List<Item> items = new ArrayList<>();
-		//TODO: Verify req and resp objects are not null on the opposite message type
+		URL url = helpers.analyzeRequest(baseRequestResponse).getUrl();
 		IRequestInfo req = helpers.analyzeRequest(baseRequestResponse);
-		List<IParameter> params = req.getParameters();
-		//TODO: Need to find a way to get cookies from requests to include any client side created cookies. This fails to build:
-		//items.addAll(req.getCookies());
-		//TODO: Find params in JSON
-		//TODO: Find params in headers
-		for (IParameter param : params)
+		if (req != null)
 		{
-			items.add(new Item(param));
+			//TODO: Find cookies from request
+			//TODO: Find params in JSON request
+			//TODO: Find params in request headers
+			//TODO: Consider url decoding parameters before saving/comparing to db
+			for (IParameter param : req.getParameters())
+			{
+				stdOut.println("Found Param: " + param.getName() + ":" + param.getValue());
+				if (db.saveParam(param, url.toString()))
+				{
+					items.add(new Item(param));
+					stdOut.println("Saved Param: " + param.getName() + ":" + param.getValue());
+				}
+			}
 		}
 		IResponseInfo resp = helpers.analyzeResponse(baseRequestResponse.getResponse());
-		items.addAll(getCookieItems(resp.getCookies()));
-		// this.stdOut.println("Items stored: " + items.size());
+		if (resp != null) 
+		{
+			//TODO: Find params in JSON response
+			//TODO: Find params in response headers
+			for (IParameter cookie : getCookieItems(resp.getCookies()))
+			{
+				stdOut.println("Found Cookie: " + cookie.getName() + ":" + cookie.getValue());
+
+				if (db.saveParam(cookie, url.toString()))
+				{
+					items.add(new Item(cookie));
+					stdOut.println("Saved Cookie: " + cookie.getName() + ":" + cookie.getValue());
+
+				}
+			}
+			// this.stdOut.println("Items stored: " + items.size());
+		}
 		return items;
 	}
 

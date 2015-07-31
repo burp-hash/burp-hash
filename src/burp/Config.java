@@ -38,11 +38,11 @@ class Config implements Serializable {
 		cfg.stdOut = b.getStdOut();
 		if (cfg.hashAlgorithms == null || cfg.hashAlgorithms.isEmpty()) 
 		{
-			cfg.stdOut.println("Hash algorithm configuration is missing ... rebuilding defaults.");
+			cfg.stdOut.println("Config: Hash algorithm configuration is missing ... rebuilding defaults.");
 			cfg.hashAlgorithms = new ArrayList<HashAlgorithm>();
 			cfg.loadHashAlgorithms();
 		}
-		cfg.stdOut.println("Successfully loaded settings.");
+		cfg.stdOut.println("Config: Successfully loaded settings.");
 		return cfg;
 	}
 
@@ -51,16 +51,9 @@ class Config implements Serializable {
 	private transient PrintWriter stdOut;
 
 	// variables below are the extension settings
-	// TODO: convert the list below to use an EnumSet with the
-	// <HashAlgorithmName> enum:
 	String databaseFilename;
-	/*boolean isMd5Enabled;
-	boolean isSha1Enabled;
-	boolean isSha224Enabled;
-	boolean isSha256Enabled;
-	boolean isSha384Enabled;
-	boolean isSha512Enabled;*/
 	boolean reportHashesOnly;	
+	boolean debug = true;
 	public List<HashAlgorithm> hashAlgorithms = new ArrayList<HashAlgorithm>();
 	
 	/**
@@ -71,7 +64,7 @@ class Config implements Serializable {
 		stdErr = b.getStdErr();
 		stdOut = b.getStdOut();
 		setDefaults();
-		stdOut.println("No saved settings found - using defaults.");
+		stdOut.println("Config: No saved settings found - using defaults.");
 	}
 
 	/**
@@ -92,7 +85,7 @@ class Config implements Serializable {
 			out.writeObject(this);
 		}
 		catch (IOException e) {
-			stdErr.println("Error saving configuration: " + e.getMessage());
+			stdErr.println("Config: Error saving configuration: " + e);
 			return;
 		}
 		String encoded = Base64.getEncoder().encodeToString(bytes.toByteArray());
@@ -133,7 +126,7 @@ class Config implements Serializable {
 	boolean isHashEnabled(HashAlgorithmName name)
 	{		
 		if (hashAlgorithms == null || hashAlgorithms.size() < 1) { 
-			stdErr.println("Hash algorithm configuration is missing or empty. Cannot check if " + name.toString() + " is enabled.");
+			stdErr.println("Config: Hash algorithm configuration is missing or empty. Cannot check if " + name.toString() + " is enabled.");
 			return false; 
 		}
 		for (HashAlgorithm algo: hashAlgorithms)

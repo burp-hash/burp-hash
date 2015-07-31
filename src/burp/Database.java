@@ -25,9 +25,6 @@ class Database {
 	private PrintWriter stdOut;
 
 	private final String connPrefix = "jdbc:sqlite:";
-	private final String sql_tableCheck = "SELECT name FROM sqlite_master WHERE type='table' AND name='params';";
-	private final String sql_insertAlgo = "INSERT OR REPLACE INTO algorithms(name, ID) VALUES (?, ?)";
-	private final String sql_hashCheck = "SELECT * FROM params WHERE hash=?;";
 
 
 	Database(BurpExtender b) {
@@ -89,7 +86,7 @@ class Database {
 		try {
 			connection = DriverManager.getConnection(connPrefix
 					+ config.databaseFilename, sc.toProperties());
-			stdOut.println("Opened database file: " + config.databaseFilename);
+			stdOut.println("DB: Opened database file: " + config.databaseFilename);
 		} catch (SQLException e) {
 			stdErr.println(e.getMessage());
 			return null;
@@ -118,17 +115,19 @@ class Database {
 			stmt.executeUpdate(sql_createParamTable);
 			String sql_createHashTable = "CREATE TABLE hashes (ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, algorithmID INTEGER NOT NULL, paramID INTEGER, value TEXT NOT NULL)";
 			stmt.executeUpdate(sql_createHashTable);
-			stdOut.println(" + Adding " + config.hashAlgorithms.size() + " hash algorithms to DB:");
+			stdOut.println(" + Adding " + config.hashAlgorithms.size() + " hash algorithms to DB.");
 			Collections.reverse(config.hashAlgorithms); //so the db has ascending order
+			String sql_insertAlgo = "INSERT OR REPLACE INTO algorithms(name, ID) VALUES (?, ?)";
 			for (HashAlgorithm algo : config.hashAlgorithms)
 			{
 				pstmt = conn.prepareStatement(sql_insertAlgo);
 				pstmt.setString(1, algo.name.text);
 				pstmt.setString(2, Integer.toString(algo.id));
 				pstmt.executeUpdate();
-				stdOut.println(" + Adding Hash Algorithm to DB: " + algo.name.text + ":" + algo.id);
+				stdOut.println(" + Adding Hash Algorithm to DB: " + algo.name.text + ", " + algo.id);
 			}
 			Collections.reverse(config.hashAlgorithms); //back to descending order for hash searching
+			stdOut.println("DB: database reinitialized.");
 			return true;
 		} catch (SQLException e) {
 			stdErr.println(e.getMessage());
@@ -140,22 +139,12 @@ class Database {
 			return false;
 		}
 	}
-	
-	boolean saveParam(Parameter param, String url)
-	{
-		return saveParam(param.value);
-	}
-	
-	boolean saveParam(IParameter param, String url)
-	{
-		return saveParam(param.getValue());
-	}
-	
+		
 	boolean saveParam(String paramValue) {
 		int paramId = getParamId(paramValue);
 		if (paramId > 0)
 		{
-			stdOut.println("DB: Not saving parameter (" + paramValue +") since it's already in the db at index = " + paramId);
+			//if (config.debug) stdOut.println("DB: Not saving parameter (" + paramValue +") since it's already in the db at index = " + paramId);
 			return false;
 		}
 		try {
@@ -166,7 +155,7 @@ class Database {
 			pstmt = conn.prepareStatement(sql_insertParam);
 			pstmt.setString(1, paramValue);
 			pstmt.executeUpdate();
-			stdOut.println("DB: Saving Discovered Parameter: " + paramValue);
+			stdOut.println("DB: Saving Discovered Parameter Value: " + paramValue);
 			return true;
 		} catch (SQLException e) {
 			stdErr.println(e.getMessage());
@@ -187,19 +176,51 @@ class Database {
 			if (!rs.next()) {
 				return 0;
 			}
-			return rs.getInt("id");
+			int id = rs.getInt("id");
+			if (config.debug) stdOut.println("DB: Found " + paramValue + " in the db at index=" + id);
+			return id;
 		} catch (SQLException e) {
 			stdErr.println(e.getMessage());
 			return -1;
 		}
 	}
+		
+	String getParamByHash(HashRecord hash)
+	{
+		int algorithmId = config.getHashId(hash.algorithm);
+		if (algorithmId <= 0)
+		{
+			stdErr.println("DB: Could not locate Algorithm ID for " + hash.algorithm);
+			return null;
+		}
+		try {
+			if (conn == null) {
+				conn = getConnection();
+			}
+			String sql_paramExists = "select params.value from hashes inner join params on hashes.paramID=params.ID where hashes.algorithmid = ? and hashes.value = ?";
+			pstmt = conn.prepareStatement(sql_paramExists);
+			pstmt.setString(1, Integer.toString(algorithmId));
+			pstmt.setString(2, hash.getNormalizedRecord());
+			ResultSet rs = pstmt.executeQuery();
+			if (!rs.next()) {
+				return null;
+			}
+			String paramValue = rs.getString("value");
+			if (config.debug) stdOut.println("DB: Match " + paramValue + " for " + hash.getNormalizedRecord());
+			return paramValue;
+		} catch (SQLException e) {
+			stdErr.println(e.getMessage());
+			return null;
+		}
+	}
 	
-	boolean saveParamHash(Parameter param, ParameterHash hash) {
+	
+	boolean saveParamWithHash(Parameter param, ParameterHash hash) {
 		int paramId = getParamId(param.value);
 		if (paramId <= 0)
 		{
-			stdOut.println("DB: Cannot save hash " + hash.hashedValue + " until the following parameter is saved " + param.name + ":" + param.value);
-			saveParam(param, "");
+			stdOut.println("DB: Cannot save hash " + hash.hashedValue + " until the following parameter is saved " + param.value);
+			saveParam(param.value);
 			paramId = getParamId(param.value);
 		}
 		try {
@@ -218,7 +239,7 @@ class Database {
 			pstmt.setString(2, Integer.toString(paramId));
 			pstmt.setString(3, hash.hashedValue); 
 			pstmt.executeUpdate();
-			stdOut.println("DB: Saving Parameter Hash to DB: " + param.name + ":" + param.value + ":" + hash.algorithm + ":" + hash.hashedValue);
+			stdOut.println("DB: Saving " + hash.algorithm.text + " hash in db: " + param.value + ":" + hash.hashedValue);
 			return true;
 		} catch (SQLException e) {
 			stdErr.println(e.getMessage());
@@ -229,7 +250,7 @@ class Database {
 	boolean saveHash(HashRecord hash) {
 		if (getHashIdByValue(hash.getNormalizedRecord()) > 0)
 		{
-			stdOut.println("DB: Not saving hash (" + hash.getNormalizedRecord() + ") since it's already in the db.");
+			//stdOut.println("DB: Not saving hash (" + hash.getNormalizedRecord() + ") since it's already in the db.");
 			return false;
 		}
 		try {
@@ -247,7 +268,7 @@ class Database {
 			pstmt.setString(1, Integer.toString(algorithmId));
 			pstmt.setString(2, hash.getNormalizedRecord());
 			pstmt.executeUpdate();
-			stdOut.println("DB: Saving Hash of Unknown Source Value to DB: " + hash.algorithm.text + ":" + hash.getNormalizedRecord());
+			stdOut.println("DB: Saving " + hash.algorithm.text + " hash of unknown source value in db: " + hash.getNormalizedRecord());
 			return true;
 		} catch (SQLException e) {
 			stdErr.println(e.getMessage());
@@ -267,11 +288,11 @@ class Database {
 			pstmt.setString(1, hashedValue);
 			ResultSet rs = pstmt.executeQuery();
 			if (!rs.next()) {
-				//stdOut.println("DB: Did not locate " + hashedValue + " in the DB.");
 				return 0;
 			}
-			//stdOut.println("DB: Found hash (" + hashedValue +") in the db at ID=" + rs.getInt("id"));
-			return rs.getInt("id");
+			int id = rs.getInt("id");
+			if (config.debug) stdOut.println("DB: Found " + hashedValue + " in the db at index=" + id);
+			return id;
 		} catch (SQLException e) {
 			stdErr.println(e.getMessage());
 			return -1;
@@ -300,7 +321,9 @@ class Database {
 			if (!rs.next()) {
 				return 0;
 			}
-			return rs.getInt("id");
+			int id = rs.getInt("id");
+			if (config.debug) stdOut.println("DB: Found " + algorithmName.text + " hash for " + param.value + " in the db at index=" + id);
+			return id;
 		} catch (SQLException e) {
 			stdErr.println(e.getMessage());
 			return -1;
@@ -320,6 +343,7 @@ class Database {
 			}
 			stmt = conn.createStatement();
 			stmt.setQueryTimeout(30);
+			String sql_tableCheck = "SELECT name FROM sqlite_master WHERE type='table' AND name='params';";
 			rs = stmt.executeQuery(sql_tableCheck);
 			boolean x = false;
 			while (rs.next()) {

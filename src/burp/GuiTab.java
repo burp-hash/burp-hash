@@ -28,7 +28,7 @@ import javax.swing.LayoutStyle.ComponentPlacement;
  * @author sjohnson
  */
 class GuiTab implements ITab {
-	private BurpExtender burpExtender;
+	private BurpExtender burpHashScanner;
 	private JButton btnReinitDatabase;
 	private JButton btnResetDefaults;
 	private JButton btnSelectFile;
@@ -62,7 +62,7 @@ class GuiTab implements ITab {
 	private JTextField txtFileName;
 
 	GuiTab(BurpExtender b) {
-		burpExtender = b;
+		burpHashScanner = b;
 		callbacks = b.getCallbacks();
 		config = b.getConfig();
 		db = b.getDatabase();
@@ -74,7 +74,6 @@ class GuiTab implements ITab {
 
 	private void btnReinitDatabaseActionPerformed(ActionEvent evt) {
 		db.init();
-		stdOut.println("Database Reinitialized.");
 	}
 
 	private void btnResetDefaultsActionPerformed(ActionEvent evt) {

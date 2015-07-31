@@ -2,30 +2,22 @@ package burp;
 
 import java.io.PrintWriter;
 import java.net.URL;
-import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Base64;
-import java.util.EnumSet;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
  * This is the "main" class of the extension. Burp begins by
- * calling {@link BurpExtender#registerExtenderCallbacks(IBurpExtenderCallbacks)}.
+ * calling {@link BurpHashScanner#registerExtenderCallbacks(IBurpExtenderCallbacks)}.
  */
 public class BurpExtender implements IBurpExtender, IScannerCheck 
 {
 	static final String extensionName = "burp-hash";
 	static final String extensionUrl = "https://burp-hash.github.io/";
-//	private static List<HashAlgorithm> hashAlgorithms;
-	//TODO: Use this to determine which hash algos to use on params for hash guessing:
-	static EnumSet<HashAlgorithmName> hashTracker = EnumSet.noneOf(HashAlgorithmName.class);
 	Pattern b64 = Pattern.compile("(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?");
 	private IBurpExtenderCallbacks callbacks;
 	private Config config;
@@ -124,12 +116,24 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	}
 */
 	
+	/**
+	 * Active Scanning is not implemented with this plugin.
+	 */
 	@Override
 	public List<IScanIssue> doActiveScan(IHttpRequestResponse baseRequestResponse, IScannerInsertionPoint insertionPoint)
 	{
 		return null; // doActiveScan is required but not used
 	}
 
+	/**
+	 * Implements the main entry point to Burp's Extension API for Passive Scanning.
+	 * Algorithm:
+	 *   - Grab the request/response
+	 *   - Locate and save all parameters
+	 *   - Hash parameters against configured and observed hash functions
+	 *   - Locate any hashes and match against pre-computed parameters' hashes
+	 *   - If any new hash algorithm types are observed, go back and check previously saved parameters
+	 */
 	@Override
 	public List<IScanIssue> doPassiveScan(IHttpRequestResponse baseRequestResponse)
 	{
@@ -142,35 +146,117 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		}
 		request = new String(baseRequestResponse.getRequest(), StandardCharsets.UTF_8);
 		response = new String(baseRequestResponse.getResponse(), StandardCharsets.UTF_8);
-		findHashes(request, baseRequestResponse, SearchType.REQUEST);
-		findHashes(response, baseRequestResponse, SearchType.RESPONSE);
-		createHashDiscoveredIssues(baseRequestResponse);
-
+		
+		//Locate params and generate hashes first if enabled
 		if (!config.reportHashesOnly)
 		{
-			//TODO: find a way to go back and update identified params with new hash algorithms 
-			//if new hash algorithms are added to the hashTracker
-			issues.addAll(findHashedParameters(baseRequestResponse));
+			findAndHashParameters(baseRequestResponse);
 		}
+		
+		//Then locate hashes
+		findHashes(request, baseRequestResponse, SearchType.REQUEST);
+		findHashes(response, baseRequestResponse, SearchType.RESPONSE);
+
+		//Then note any discoveries and create burp issues
+		createHashDiscoveredIssues(baseRequestResponse);
 		issues = sortIssues(issues);
 		if (issues.size() > 0)
 		{
-			stdOut.println("Added " + issues.size() + " issues.");
+			stdOut.println("Scanner: Added " + issues.size() + " issues.");
 		}
-		for (IScanIssue issue : issues)
+		/*for (IScanIssue issue : issues)
 		{
-			//stdOut.println("Begin Issue:\n" + issue.toString() + "\nEnd Issue");
-		}
+			stdOut.println("Begin Issue:\n" + issue.toString() + "\nEnd Issue");
+		}*/
 		return issues;
 	}
 
-	private List<Issue> findHashedParameters(IHttpRequestResponse baseRequestResponse)
+	private void findAndHashParameters(IHttpRequestResponse baseRequestResponse)
 	{
-		List<Issue> issues = new ArrayList<>();
-		List<Item> items = getParameterItems(baseRequestResponse);
-		generateParameterHashes(items);
-		issues.addAll(findMatchingHashes(baseRequestResponse));
-		return issues;
+		List<Item> items = findNewParameters(baseRequestResponse);
+		hashNewParameters(items);
+	}
+	
+	private List<Item> findNewParameters(IHttpRequestResponse baseRequestResponse)
+	{
+		List<Item> items = new ArrayList<>();
+		IRequestInfo req = helpers.analyzeRequest(baseRequestResponse);
+		if (req != null)
+		{
+			//TODO: Find cookies from request
+			//TODO: Find params in JSON request
+			//TODO: Find params in request headers
+			//TODO: Consider url decoding parameters before saving/comparing to db
+			for (IParameter param : req.getParameters())
+			{
+				if (config.debug) stdOut.println("Scanner: Found Request Parameter: " + param.getName() + ":" + param.getValue());
+				if (db.saveParam(param.getValue()))
+				{
+					items.add(new Item(param));
+				}
+			}
+		}
+		IResponseInfo resp = helpers.analyzeResponse(baseRequestResponse.getResponse());
+		if (resp != null) 
+		{
+			//TODO: Find params in JSON response
+			//TODO: Find params in response headers
+			for (IParameter cookie : getCookieItems(resp.getCookies()))
+			{
+				if (config.debug) stdOut.println("Scanner: Found Response Cookie: " + cookie.getName() + ":" + cookie.getValue());
+				if (db.saveParam(cookie.getName()))
+				{
+					items.add(new Item(cookie));
+
+				}
+			}
+			// if (config.debug) stdOut.println("Items stored: " + items.size());
+		}
+		return items;
+	}
+	
+	private void hashNewParameters(List<Item> items)
+	{
+		for(Item item : items)
+		{
+			//TODO: validate this works:
+			/*if (isItemAHash(item))
+			{
+				continue; // don't rehash the hashes
+				//but probably want to add them to the parameter DB at some point
+			}*/
+			Parameter param = new Parameter();
+			param.name = item.getName();
+			param.value = item.getValue();
+			for (HashAlgorithm algorithm : config.hashAlgorithms)
+			{
+				if (config.debug) stdOut.println("Scanner: " + algorithm.name.text);
+				if (!algorithm.enabled)
+				{
+					if (config.debug) stdOut.println(" - disabled.");
+					continue;
+				}
+				if (config.debug) stdOut.println(" - enabled.");
+				try
+				{
+					ParameterHash hash = new ParameterHash();
+					hash.algorithm = algorithm.name;
+					hash.hashedValue = HashEngine.Hash(param.value, algorithm.name);
+					param.parameterHashes.add(hash);
+					if (config.debug) stdOut.println("Scanner: " + algorithm.name.text + " hash for: " + param.value + " hash=" + hash.hashedValue);
+					if (this.db.saveParamWithHash(param, hash)) 
+					{
+						//stdOut.println("Scanner: Saved parameter with hash to db " + param.value + ":" + hash.hashedValue);
+						break;
+					}
+				}
+				catch (NoSuchAlgorithmException nsae)
+				{ 
+					stdOut.println("Scanner: No Such Algorithm Error" + nsae); 
+				}
+			}
+			parameters.add(param);
+		}
 	}
 
 	private void findHashes(String s, IHttpRequestResponse baseRequestResponse, SearchType searchType)
@@ -181,6 +267,8 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			List<HashRecord> results = findRegex(s, hashAlgorithm.pattern, hashAlgorithm.name);
 			for(HashRecord result : results)
 			{
+				//TODO: fix this logic to record matched hashes
+				stdOut.println("Scanner: Found " + hashAlgorithm.name.text + " hash: " + result.record);
 				//Let the DB do the sorting of unique hash values:
 				boolean found = !db.saveHash(result);
 				result.searchType = searchType;
@@ -188,9 +276,16 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 				// ^ Is this a problem? The intent here is to observe hashes of unknown origin. 
 				// Logging how many times we saw it and where is not as valuable as just logging 
 				// it so we can compare it to params we may hash and match later on.  Thoughts?  [TM]
-				if (found) continue;
-				hashes.add(result);
-				stdOut.println("Found " + hashAlgorithm.name.text + " hash: " + result.record + " URL: " + helpers.analyzeRequest(baseRequestResponse).getUrl());
+				if (found) 
+				{
+					hashes.add(result);
+				}
+			}
+			if (!results.isEmpty())
+			{
+				//if (config.debug) stdOut.println("Scanner: Preventing hash mismatch.");
+				//prevent a mismatch on a shorter hash algorithm in descending order:
+				break;
 			}
 		}
 	}
@@ -201,12 +296,17 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		//TODO: improve logic to compare hashed params with discovered hashes
 		for(HashRecord hash : hashes)
 		{
+			String paramValue = db.getParamByHash(hash);
+			if (paramValue != null)
+			{
+				stdOut.println("Scanner: " + hash.algorithm.text + " Hash Match for " + paramValue + ":" + hash.getNormalizedRecord());
+			}
 			ParameterHash tempPH = new ParameterHash();
 				tempPH.hashedValue = hash.record;
 				tempPH.algorithm = hash.algorithm;
 			String foundHit = "false"; //db.exists(tempPH);
 			if(foundHit != null && !foundHit.isEmpty()) {
-				stdOut.println("!!!Matching Parameter!!!:"+foundHit);
+				stdOut.println("Scanner: !!!Matching Parameter!!!:"+foundHit);
 				IHttpRequestResponse[] message;
 				if (hash.searchType.equals(SearchType.REQUEST))
 				{ //apply markers to the request
@@ -292,7 +392,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			hash.encodingType = EncodingType.Hex;
 			hash.sortMarkers();
 			hashes.add(hash);
-			hashTracker.add(algorithm);
+			//TODO: if hash algorithm was previously not enabled in config, enable it and generate hashes on all previously saved parameters
 		}
 
 		// search for Base64-encoded data
@@ -316,7 +416,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 				matcher = pattern.matcher(hexHash);
 				if (matcher.matches())
 				{
-					stdOut.println("Base64 Match: " + urlDecodedHash + " <<" + hexHash + ">>");
+					stdOut.println("Scanner: Base64 Match: " + urlDecodedHash + " <<" + hexHash + ">>");
 					HashRecord hash = new HashRecord();
 					hash.found = true;
 					if (isUrlEncoded) {
@@ -330,7 +430,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 					hash.encodingType = EncodingType.Base64;
 					hash.sortMarkers();
 					hashes.add(hash);
-					hashTracker.add(algorithm);
+					//TODO: if hash algorithm was not previously enabled, enable it and generate hashes of old params
 				}
 			}
 			catch (IllegalArgumentException iae)
@@ -339,39 +439,6 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			}
 		}
 		return hashes;
-	}
-	
-	private void generateParameterHashes(List<Item> items)
-	{
-		for(Item item : items)
-		{
-			if (isItemAHash(item))
-			{
-				continue; // don't rehash the hashes
-				//but probably want to add them to the parameter DB at some point
-			}
-			Parameter param = new Parameter();
-			param.name = item.getName();
-			param.value = item.getValue();
-			for (HashAlgorithmName algorithm : hashTracker)
-			{
-				try
-				{
-					ParameterHash hash = new ParameterHash();
-					hash.algorithm = algorithm;
-					//maybe replace with hashingEngine
-					MessageDigest md = MessageDigest.getInstance(algorithm.getValue());
-					byte[] digest = md.digest(param.value.getBytes(StandardCharsets.UTF_8));
-					hash.hashedValue = Utilities.byteArrayToHex(digest);
-					param.parameterHashes.add(hash);
-					stdOut.println("Found Parameter: " + param.name + ":" + param.value + " " + algorithm + " hash: " + hash.hashedValue);
-					if (this.db.saveParam(param, "")) stdOut.println("values added to db"); //TODO: add URL to db.saveParam() call
-				}
-				catch (NoSuchAlgorithmException nsae)
-				{ stdOut.println("No Such Algorithm Error"); }
-			}
-			parameters.add(param);
-		}
 	}
 	
 	IBurpExtenderCallbacks getCallbacks() {
@@ -394,48 +461,6 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	
 	Database getDatabase() {
 		return db;
-	}
-
-	private List<Item> getParameterItems(IHttpRequestResponse baseRequestResponse)
-	{
-		List<Item> items = new ArrayList<>();
-		URL url = helpers.analyzeRequest(baseRequestResponse).getUrl();
-		IRequestInfo req = helpers.analyzeRequest(baseRequestResponse);
-		if (req != null)
-		{
-			//TODO: Find cookies from request
-			//TODO: Find params in JSON request
-			//TODO: Find params in request headers
-			//TODO: Consider url decoding parameters before saving/comparing to db
-			for (IParameter param : req.getParameters())
-			{
-				stdOut.println("Found Param: " + param.getName() + ":" + param.getValue());
-				if (db.saveParam(param, url.toString()))
-				{
-					items.add(new Item(param));
-					stdOut.println("Saved Param: " + param.getName() + ":" + param.getValue());
-				}
-			}
-		}
-		IResponseInfo resp = helpers.analyzeResponse(baseRequestResponse.getResponse());
-		if (resp != null) 
-		{
-			//TODO: Find params in JSON response
-			//TODO: Find params in response headers
-			for (IParameter cookie : getCookieItems(resp.getCookies()))
-			{
-				stdOut.println("Found Cookie: " + cookie.getName() + ":" + cookie.getValue());
-
-				if (db.saveParam(cookie, url.toString()))
-				{
-					items.add(new Item(cookie));
-					stdOut.println("Saved Cookie: " + cookie.getName() + ":" + cookie.getValue());
-
-				}
-			}
-			// this.stdOut.println("Items stored: " + items.size());
-		}
-		return items;
 	}
 
 	PrintWriter getStdErr() {
@@ -466,13 +491,13 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		} 
 		catch (Exception e) 
 		{
-			stdErr.println("Error loading config: " + e.getMessage());
+			stdErr.println("Scanner: Error loading config: " + e);
 			e.printStackTrace(stdErr);
 			return;
 		}
 		if (config.hashAlgorithms != null || !config.hashAlgorithms.isEmpty())
 		{
-			//stdOut.println("Succesfully loaded hash algorithm configuration.");
+			//stdOut.println("Scanner: Succesfully loaded hash algorithm configuration.");
 		}
 	}
 
@@ -486,12 +511,12 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		if (!db.verify()) {
 			db.init();
 			if (!db.verify()) {
-				stdErr.println("Unable to initialize database.");
+				stdErr.println("Scanner: Unable to initialize database.");
 			} else {
-				stdOut.println("Database initialized and verified.");
+				stdOut.println("Scanner: Database initialized and verified.");
 			}
 		} else {
-			stdOut.println("Database verified.");
+			stdOut.println("Scanner: Database verified.");
 		}
 		//db.close();
 	}

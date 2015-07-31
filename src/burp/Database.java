@@ -20,19 +20,14 @@ class Database {
 	private Config config;
 	private Connection conn = null;
 	private IBurpExtenderCallbacks callbacks;
-	private PreparedStatement pstmt = null; //TODO: prepared statements for inserting data
+	private PreparedStatement pstmt = null;
 	private PrintWriter stdErr;
 	private PrintWriter stdOut;
 
 	private final String connPrefix = "jdbc:sqlite:";
 	private final String sql_tableCheck = "SELECT name FROM sqlite_master WHERE type='table' AND name='params';";
-	private final String sql_dropTables = "DROP TABLE IF EXISTS params; DROP TABLE IF EXISTS hashes; DROP TABLE IF EXISTS algorithms;";
-	private final String sql_createAlgoTable = "CREATE TABLE algorithms (ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, Name TEXT NOT NULL)";
-	private final String sql_createParamTable = "CREATE TABLE params (ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name TEXT NOT NULL, value TEXT NOT NULL, url TEXT)";
-	private final String sql_createHashTable = "CREATE TABLE hashes (ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, algorithmID INTEGER NOT NULL, paramID INTEGER NOT NULL, value TEXT NOT NULL)";
 	private final String sql_insertAlgo = "INSERT OR REPLACE INTO algorithms(name, ID) VALUES (?, ?)";
-	private final String sql_insertParams = "INSERT OR REPLACE INTO params(name, value, url) VALUES (?, ?, ?)";
-	private final String sql_insertHashes = "INSERT OR REPLACE INTO hashes(algorithmID, paramID, value) VALUES (?, ?, ?)";
+	private final String sql_insertParam = "INSERT OR REPLACE INTO params(name, value, url) VALUES (?, ?, ?)";
 	private final String sql_hashCheck = "SELECT * FROM params WHERE hash=?;";
 
 
@@ -56,8 +51,6 @@ class Database {
 	void changeFile() {
 		close();
 		conn = getConnection();
-		burpExtender.loadHashes();
-		burpExtender.loadHashedParameters();
 	}
 
 	/**
@@ -117,11 +110,16 @@ class Database {
 			}
 			stmt = conn.createStatement();
 			stmt.setQueryTimeout(30);
+			stdOut.println(" + Rebuilding all DB tables.");
+			String sql_dropTables = "DROP TABLE IF EXISTS params; DROP TABLE IF EXISTS hashes; DROP TABLE IF EXISTS algorithms;";
 			stmt.executeUpdate(sql_dropTables);
+			String sql_createAlgoTable = "CREATE TABLE algorithms (ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, Name TEXT NOT NULL)";
 			stmt.executeUpdate(sql_createAlgoTable);
+			String sql_createParamTable = "CREATE TABLE params (ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name TEXT NOT NULL, value TEXT NOT NULL, url TEXT)";
 			stmt.executeUpdate(sql_createParamTable);
+			String sql_createHashTable = "CREATE TABLE hashes (ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, algorithmID INTEGER NOT NULL, paramID INTEGER NULL, value TEXT NOT NULL)";
 			stmt.executeUpdate(sql_createHashTable);
-			stdOut.println("DB init: hash algorithm count: " + config.hashAlgorithms.size());
+			stdOut.println(" + Adding " + config.hashAlgorithms.size() + " hash algorithms to DB:");
 			Collections.reverse(config.hashAlgorithms); //so the db has ascending order
 			for (HashAlgorithm algo : config.hashAlgorithms)
 			{
@@ -129,7 +127,7 @@ class Database {
 				pstmt.setString(1, algo.name.text);
 				pstmt.setString(2, Integer.toString(algo.id));
 				pstmt.executeUpdate();
-				stdOut.println("Adding Hash Algorithm to DB: " + algo.name.text + ":" + algo.id);
+				stdOut.println(" + Adding Hash Algorithm to DB: " + algo.name.text + ":" + algo.id);
 			}
 			Collections.reverse(config.hashAlgorithms); //back to descending order for hash searching
 			return true;
@@ -143,32 +141,22 @@ class Database {
 			return false;
 		}
 	}
-
-	/**
-	 * TODO: add methods for storing/retrieving data
-	 * Parameter param = new Parameter();
-			param.name = item.getName();
-			param.value = item.getValue();
-			for (HashAlgorithmName algorithm : hashTracker)
-			{
-				try
-				{
-					ParameterHash hash = new ParameterHash();
-	 */
-	boolean upsert(Parameter toUpsert, ParameterHash hashedParam) {
-		//Want to update if param_name+hashalgo exists, insert if not
+	
+	boolean saveParam(Parameter param, String url) {
+		if (getParamId(param) <= 0)
+		{
+			return false;
+		}
 		try {
 			if (conn == null) {
 				conn = getConnection();
-				}
-			//insert a hash in db for all observedHashTypes
-			pstmt = conn.prepareStatement(sql_insertParams);
-			pstmt.setString(1, toUpsert.name);
-			pstmt.setString(2, toUpsert.value);
-			pstmt.setString(3, hashedParam.algorithm.toString());
-			pstmt.setString(4, hashedParam.hashedValue);
+			}
+			pstmt = conn.prepareStatement(sql_insertParam);
+			pstmt.setString(1, param.name);
+			pstmt.setString(2, param.value);
+			pstmt.setString(3, url); //optional
 			pstmt.executeUpdate();
-			stdOut.println("Adding Found Parameter to DB: " + toUpsert.name + ":" + toUpsert.value + " " + hashedParam.algorithm.toString());
+			stdOut.println("DB: Saving Discovered Parameter: " + param.name + ":" + param.value);
 			return true;
 		} catch (SQLException e) {
 			stdErr.println(e.getMessage());
@@ -176,33 +164,142 @@ class Database {
 		}
 	}
 	
-	String exists(ParameterHash hashedParam) {
-		// return parameter value if the hash already exists
+	int getParamId(Parameter param)
+	{
 		try {
 			if (conn == null) {
 				conn = getConnection();
-				}
-			//insert a hash in db for all observedHashTypes
-			pstmt = conn.prepareStatement(sql_hashCheck);
-			pstmt.setString(1, hashedParam.hashedValue);
-			stdOut.println("Searching DB for: " + hashedParam.hashedValue);
-			ResultSet rs = pstmt.executeQuery();
-			String results = rs.getString("hashAlgo");
-			//if result, return SHA1:test@email.com
-			if(results != null && !results.isEmpty()) {
-				stdOut.println("FOUND MATCH FOR: " + hashedParam.hashedValue + " is " + rs.getString("value"));
-				return results + ":" + rs.getString("value");
 			}
-			else
-				return null;
+			String sql_paramExists = "SELECT * from params where name = ? and value = ?";
+			pstmt = conn.prepareStatement(sql_paramExists);
+			pstmt.setString(1, param.name);
+			pstmt.setString(2, param.value);
+			ResultSet rs = pstmt.executeQuery();
+			if (!rs.next()) {
+				return 0;
+			}
+			return rs.getInt("id");
 		} catch (SQLException e) {
 			stdErr.println(e.getMessage());
-			return null;
+			return -1;
+		}
+	}
+	
+	boolean saveParamHash(Parameter param, ParameterHash hash) {
+		int paramId = getParamId(param);
+		if (paramId <= 0)
+		{
+			stdOut.println("DB: Cannot save hash " + hash.hashedValue + " until the following parameter is saved " + param.name + ":" + param.value);
+			saveParam(param, "");
+			paramId = getParamId(param);
+		}
+		try {
+			if (conn == null) {
+				conn = getConnection();
+			}
+			int algorithmId = config.getHashId(hash.algorithm);
+			if (algorithmId <= 0)
+			{
+				stdErr.println("DB: Could not locate Algorithm ID for " + hash.algorithm);
+				return false;
+			}
+			String sql_insertHash = "INSERT OR REPLACE INTO hashes(algorithmID, paramID, value) VALUES (?, ?, ?)";
+			pstmt = conn.prepareStatement(sql_insertHash);
+			pstmt.setString(1, Integer.toString(algorithmId));
+			pstmt.setString(2, Integer.toString(paramId));
+			pstmt.setString(3, hash.hashedValue); 
+			pstmt.executeUpdate();
+			stdOut.println("DB: Saving Parameter Hash to DB: " + param.name + ":" + param.value + ":" + hash.algorithm + ":" + hash.hashedValue);
+			return true;
+		} catch (SQLException e) {
+			stdErr.println(e.getMessage());
+			return false;
+		}
+	}
+	
+	boolean saveHash(HashRecord hash) {
+		if (getHashIdByValue(hash.getNormalizedRecord()) > 0)
+		{
+			stdOut.println("DB: Not saving hash (" + hash.getNormalizedRecord() + ") since it's already in the db.");
+			return false;
+		}
+		try {
+			if (conn == null) {
+				conn = getConnection();
+			}
+			int algorithmId = config.getHashId(hash.algorithm);
+			if (algorithmId <= 0)
+			{
+				stdErr.println("DB: Could not locate Algorithm ID for " + hash.algorithm);
+				return false;
+			}
+			String sql_insertHash = "INSERT OR REPLACE INTO hashes(algorithmID, value) VALUES (?, ?)";
+			pstmt = conn.prepareStatement(sql_insertHash);
+			pstmt.setString(1, Integer.toString(algorithmId));
+			pstmt.setString(2, hash.getNormalizedRecord());
+			pstmt.executeUpdate();
+			stdOut.println("DB: Saving Hash of Unknown Source Value to DB: " + hash.algorithm.text + ":" + hash.getNormalizedRecord());
+			return true;
+		} catch (SQLException e) {
+			stdErr.println(e.getMessage());
+			return false;
+		}
+	}
+	
+	int getHashIdByValue(String hashedValue)
+	{
+		try {
+			if (conn == null) {
+				conn = getConnection();
+			}
+			//TODO: Could just search on value only, rather than algorithmID:
+			String sql_hashExists = "SELECT * from hashes where value = ?";
+			pstmt = conn.prepareStatement(sql_hashExists);
+			pstmt.setString(1, hashedValue);
+			ResultSet rs = pstmt.executeQuery();
+			if (!rs.next()) {
+				stdOut.println("DB: Did not locate " + hashedValue + " in the DB.");
+				return 0;
+			}
+			stdOut.println("DB: Found hash (" + hashedValue +") in the db at ID=" + rs.getInt("id"));
+			return rs.getInt("id");
+		} catch (SQLException e) {
+			stdErr.println(e.getMessage());
+			return -1;
+		}
+	}
+	
+	// This is for searching for previously observed params with missing hashes for new algorithm types
+	int getHashIdByAlgorithmAndParam(Parameter param, HashAlgorithmName algorithmName)
+	{
+		try {
+			if (conn == null) {
+				conn = getConnection();
+			}
+			int algorithmId = config.getHashId(algorithmName);
+			if (algorithmId <= 0)
+			{
+				stdErr.println("DB: Could not locate Algorithm ID for " + algorithmName);
+				return -1;
+			}
+			int paramId = getParamId(param);
+			String sql_hashExists = "SELECT * from hashes where algorithmID = ? and paramID = ?";
+			pstmt = conn.prepareStatement(sql_hashExists);
+			pstmt.setString(1, Integer.toString(algorithmId));
+			pstmt.setString(2, Integer.toString(paramId));
+			ResultSet rs = pstmt.executeQuery();
+			if (!rs.next()) {
+				return 0;
+			}
+			return rs.getInt("id");
+		} catch (SQLException e) {
+			stdErr.println(e.getMessage());
+			return -1;
 		}
 	}
 
 	/**
-	 * TODO: verify presence of all tables? (params, hashes, etc.)
+	 * TODO: verify presence of all tables? (params, hashes, etc.) < Yes please, but !MVP [TM]
 	 */
 	boolean verify() {
 		Statement stmt = null;

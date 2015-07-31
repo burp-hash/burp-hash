@@ -145,4 +145,16 @@ class Config implements Serializable {
 		}
 		return false;
 	}
+	
+	int getHashId(HashAlgorithmName name)
+	{
+		for (HashAlgorithm algo : hashAlgorithms)
+		{
+			if (algo.name.equals(name))
+			{
+				return algo.id;
+			}
+		}
+		return 0;
+	}
 }

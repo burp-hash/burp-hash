@@ -181,6 +181,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			List<HashRecord> results = findRegex(s, hashAlgorithm.pattern, hashAlgorithm.name);
 			for(HashRecord result : results)
 			{
+				db.saveHash(result);
 				boolean found = false;
 				result.searchType = searchType;
 
@@ -197,10 +198,9 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 				}
 				if (found) continue;
 				hashes.add(result);
-				stdOut.println("Found " + hashAlgorithm.name + " hash: " + result.record + " URL: " + helpers.analyzeRequest(baseRequestResponse).getUrl());
+				stdOut.println("Found " + hashAlgorithm.name.text + " hash: " + result.record + " URL: " + helpers.analyzeRequest(baseRequestResponse).getUrl());
 			}
 		}
-		saveHashes();
 	}
 
 	private List<Issue> findMatchingHashes(IHttpRequestResponse baseRequestResponse)
@@ -212,7 +212,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			ParameterHash tempPH = new ParameterHash();
 				tempPH.hashedValue = hash.record;
 				tempPH.algorithm = hash.algorithm;
-			String foundHit = db.exists(tempPH);
+			String foundHit = "false"; //db.exists(tempPH);
 			if(foundHit != null && !foundHit.isEmpty()) {
 				stdOut.println("!!!Matching Parameter!!!:"+foundHit);
 				IHttpRequestResponse[] message;
@@ -373,7 +373,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 					hash.hashedValue = Utilities.byteArrayToHex(digest);
 					param.parameterHashes.add(hash);
 					stdOut.println("Found Parameter: " + param.name + ":" + param.value + " " + algorithm + " hash: " + hash.hashedValue);
-					if (this.db.upsert(param, hash)) stdOut.println("values added to db");
+					if (this.db.saveParam(param, "")) stdOut.println("values added to db"); //TODO: add URL to db.saveParam() call
 				}
 				catch (NoSuchAlgorithmException nsae)
 				{ stdOut.println("No Such Algorithm Error"); }
@@ -460,11 +460,6 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		{
 			//stdOut.println("Succesfully loaded hash algorithm configuration.");
 		}
-
-		//TODO: remove these below and just use the db every time
-		//Load persisted hashes/parameters for resuming testing from a previous test:
-		loadHashes();
-		loadHashedParameters();
 	}
 
 	/**
@@ -490,37 +485,6 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	private void loadGui() {
 		guiTab = new GuiTab(this);
 		callbacks.addSuiteTab(guiTab);
-	}
-
-/*  Refactoring this "config" data to the Config object
- * 	void loadHashAlgorithms() {
-		hashAlgorithms = new ArrayList<>();
-		if(config.isSha512Enabled) hashAlgorithms.add(new HashAlgorithm(128, HashAlgorithmName.SHA_512, 6));
-		if(config.isSha384Enabled) hashAlgorithms.add(new HashAlgorithm(96, HashAlgorithmName.SHA_384, 5));
-		if(config.isSha256Enabled) hashAlgorithms.add(new HashAlgorithm(64, HashAlgorithmName.SHA_256, 4));
-		if(config.isSha224Enabled) hashAlgorithms.add(new HashAlgorithm(56, HashAlgorithmName.SHA_224, 3));
-		if(config.isSha1Enabled) hashAlgorithms.add(new HashAlgorithm(40, HashAlgorithmName.SHA_1, 2));
-		if(config.isMd5Enabled) hashAlgorithms.add(new HashAlgorithm(32, HashAlgorithmName.MD5, 1));
-	}*/
-
-	void loadHashedParameters()
-	{
-		//TODO: Implement retrieving hashed params from disk later (!MVP)
-	}
-
-	void loadHashes()
-	{
-		//TODO: Implement retrieving hashes from disk later (!MVP)
-	}
-
-	private void saveHashedParameters()
-	{
-		//TODO: Persist hashed params later (!MVP)
-	}
-
-	private void saveHashes()
-	{
-		//TODO: Persist hashes later (!MVP)
 	}
 
 	private List<IScanIssue> sortIssues(List<IScanIssue> issues)

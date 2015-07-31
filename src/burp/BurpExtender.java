@@ -17,6 +17,7 @@ import java.util.regex.Pattern;
 public class BurpExtender implements IBurpExtender, IScannerCheck 
 {
 	static final String extensionName = "burp-hash";
+	static final String moduleName = "Scanner";
 	static final String extensionUrl = "https://burp-hash.github.io/";
 	Pattern b64 = Pattern.compile("(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?");
 	private IBurpExtenderCallbacks callbacks;
@@ -136,14 +137,14 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		discoveredHashIssues = sortIssues(discoveredHashIssues);
 		if (discoveredHashIssues.size() > 0)
 		{
-			stdOut.println("Scanner: Added " + discoveredHashIssues.size() + " 'Hash Discovered' issues.");
+			stdOut.println(moduleName + ": Added " + discoveredHashIssues.size() + " 'Hash Discovered' issues.");
 		}
 		
 		List<IScanIssue> matchedHashIssues = matchParamsToHashes(baseRequestResponse);
 		matchedHashIssues = sortIssues(matchedHashIssues);
 		if (!matchedHashIssues.isEmpty())
 		{
-			stdOut.println("Scanner: Added " + matchedHashIssues.size() + " 'Hash Matched' issues.");
+			stdOut.println(moduleName + ": Added " + matchedHashIssues.size() + " 'Hash Matched' issues.");
 		}
 		issues.addAll(matchedHashIssues);
 		issues.addAll(discoveredHashIssues);
@@ -162,7 +163,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			//TODO: Consider url decoding parameters before saving/comparing to db
 			for (IParameter param : req.getParameters())
 			{
-				if (config.debug) stdOut.println("Scanner: Found Request Parameter: '" + param.getName() + "':'" + param.getValue() + "'");
+				if (config.debug) stdOut.println(moduleName + ": Found Request Parameter: '" + param.getName() + "':'" + param.getValue() + "'");
 				if (db.saveParam(param.getValue()))
 				{
 					items.add(new Item(param));
@@ -177,7 +178,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			//TODO: Find params in html body response via common regexes (email, user ID, credit card, etc.)
 			for (IParameter cookie : getCookieItems(resp.getCookies()))
 			{
-				if (config.debug) stdOut.println("Scanner: Found Response Cookie: '" + cookie.getName() + "':'" + cookie.getValue() + "'");
+				if (config.debug) stdOut.println(moduleName + ": Found Response Cookie: '" + cookie.getName() + "':'" + cookie.getValue() + "'");
 				if (db.saveParam(cookie.getName()))
 				{
 					items.add(new Item(cookie));
@@ -204,7 +205,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			param.value = item.getValue();
 			for (HashAlgorithm algorithm : config.hashAlgorithms)
 			{
-				if (config.debug) stdOut.println("Scanner: " + algorithm.name.text);
+				if (config.debug) stdOut.println(moduleName + ": " + algorithm.name.text);
 				if (!algorithm.enabled)
 				{
 					if (config.debug) stdOut.println(" - disabled.");
@@ -217,7 +218,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 					paramWithHash.parameter = param;
 					paramWithHash.algorithm = algorithm.name;
 					paramWithHash.hashedValue = HashEngine.Hash(param.value, algorithm.name);
-					if (config.debug) stdOut.println("Scanner: " + algorithm.name.text + " hash for: " + param.value + " hash=" + paramWithHash.hashedValue);
+					if (config.debug) stdOut.println(moduleName + ": " + algorithm.name.text + " hash for: " + param.value + " hash=" + paramWithHash.hashedValue);
 					if (db.saveParamWithHash(paramWithHash)) 
 					{
 						continue;
@@ -225,7 +226,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 				}
 				catch (NoSuchAlgorithmException nsae)
 				{ 
-					stdOut.println("Scanner: No Such Algorithm Error" + nsae); 
+					stdOut.println(moduleName + ": No Such Algorithm Error" + nsae); 
 				}
 			}
 			parameters.add(param);
@@ -241,7 +242,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			for(HashRecord result : results)
 			{
 				result.searchType = searchType;
-				stdOut.println("Scanner: Found " + hashAlgorithm.name.text + " hash in " + searchType + ": " + result.record);
+				stdOut.println(moduleName + ": Found " + hashAlgorithm.name.text + " hash in " + searchType + ": " + result.record);
 				
 				//TODO: same hash string with different marker values gets lost
 				// ^ Is this a problem? The intent here is to observe hashes of unknown origin. 
@@ -254,7 +255,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			}
 			if (!results.isEmpty())
 			{
-				//if (config.debug) stdOut.println("Scanner: Preventing hash mismatch.");
+				//if (config.debug) stdOut.println(moduleName + ": Preventing hash mismatch.");
 				//prevent a mismatch on a shorter hash algorithm in descending order:
 				break;
 			}
@@ -294,14 +295,14 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 
 	private List<IScanIssue> matchParamsToHashes(IHttpRequestResponse baseRequestResponse)
 	{
-		if (config.debug) stdOut.println("Scanner: Matching Params to " + hashes.size() + " observed hashes.");
+		if (config.debug) stdOut.println(moduleName + ": Matching Params to " + hashes.size() + " observed hashes.");
 		List<IScanIssue> issues = new ArrayList<>();
 		for(HashRecord hash : hashes)
 		{
 			String paramValue = db.getParamByHash(hash);
 			if (paramValue != null)
 			{
-				stdOut.println("Scanner: " + hash.algorithm.text + " Hash match for parameter'" + paramValue + "' = '" + hash.getNormalizedRecord() + "'");
+				stdOut.println(moduleName + ": " + hash.algorithm.text + " Hash match for parameter'" + paramValue + "' = '" + hash.getNormalizedRecord() + "'");
 				IHttpRequestResponse[] message;
 				if (hash.searchType.equals(SearchType.REQUEST))
 				{ //apply markers to the request
@@ -393,7 +394,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 				matcher = pattern.matcher(hexHash);
 				if (matcher.matches())
 				{
-					stdOut.println("Scanner: Base64 Match: " + urlDecodedHash + " <<" + hexHash + ">>");
+					stdOut.println(moduleName + ": Base64 Match: " + urlDecodedHash + " <<" + hexHash + ">>");
 					HashRecord hash = new HashRecord();
 					if (isUrlEncoded) {
 						b64EncodedHash = b64EncodedHash.replace("=", "%3D");
@@ -469,13 +470,13 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		} 
 		catch (Exception e) 
 		{
-			stdErr.println("Scanner: Error loading config: " + e);
+			stdErr.println(moduleName + ": Error loading config: " + e);
 			e.printStackTrace(stdErr);
 			return;
 		}
 		if (config.hashAlgorithms != null || !config.hashAlgorithms.isEmpty())
 		{
-			//stdOut.println("Scanner: Succesfully loaded hash algorithm configuration.");
+			//stdOut.println(moduleName + ": Succesfully loaded hash algorithm configuration.");
 		}
 	}
 
@@ -489,12 +490,12 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		if (!db.verify()) {
 			db.init();
 			if (!db.verify()) {
-				stdErr.println("Scanner: Unable to initialize database.");
+				stdErr.println(moduleName + ": Unable to initialize database.");
 			} else {
-				stdOut.println("Scanner: Database initialized and verified.");
+				stdOut.println(moduleName + ": Database initialized and verified.");
 			}
 		} else {
-			stdOut.println("Scanner: Database verified.");
+			stdOut.println(moduleName + ": Database verified.");
 		}
 		//db.close();
 	}

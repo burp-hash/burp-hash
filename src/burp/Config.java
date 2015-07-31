@@ -18,6 +18,7 @@ import java.util.ArrayList;
  */
 class Config implements Serializable {
 	private static final long serialVersionUID = 1L;
+	private static final String moduleName = "Config";
 
 	/**
 	 * load saved config if it exists
@@ -38,11 +39,11 @@ class Config implements Serializable {
 		cfg.stdOut = b.getStdOut();
 		if (cfg.hashAlgorithms == null || cfg.hashAlgorithms.isEmpty()) 
 		{
-			cfg.stdOut.println("Config: Hash algorithm configuration is missing ... rebuilding defaults.");
+			cfg.stdOut.println(moduleName + ": Hash algorithm configuration is missing ... rebuilding defaults.");
 			cfg.hashAlgorithms = new ArrayList<HashAlgorithm>();
 			cfg.loadHashAlgorithms();
 		}
-		cfg.stdOut.println("Config: Successfully loaded settings.");
+		cfg.stdOut.println(moduleName + ": Successfully loaded settings.");
 		return cfg;
 	}
 
@@ -64,7 +65,7 @@ class Config implements Serializable {
 		stdErr = b.getStdErr();
 		stdOut = b.getStdOut();
 		setDefaults();
-		stdOut.println("Config: No saved settings found - using defaults.");
+		stdOut.println(moduleName + ": No saved settings found - using defaults.");
 	}
 
 	/**
@@ -85,7 +86,7 @@ class Config implements Serializable {
 			out.writeObject(this);
 		}
 		catch (IOException e) {
-			stdErr.println("Config: Error saving configuration: " + e);
+			stdErr.println(moduleName + ": Error saving configuration: " + e);
 			return;
 		}
 		String encoded = Base64.getEncoder().encodeToString(bytes.toByteArray());
@@ -126,7 +127,7 @@ class Config implements Serializable {
 	boolean isHashEnabled(HashAlgorithmName name)
 	{		
 		if (hashAlgorithms == null || hashAlgorithms.size() < 1) { 
-			stdErr.println("Config: Hash algorithm configuration is missing or empty. Cannot check if " + name.toString() + " is enabled.");
+			stdErr.println(moduleName + ": Hash algorithm configuration is missing or empty. Cannot check if " + name.toString() + " is enabled.");
 			return false; 
 		}
 		for (HashAlgorithm algo: hashAlgorithms)

@@ -340,7 +340,10 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		                issueText.RemediationBackground);
 				issues.add(issue);
 			}
-			if (config.debug) stdOut.println(moduleName + ": Did not find plaintext match for " + hash.algorithm.text + " hash: '" + hash.getNormalizedRecord() + "'");
+			else
+			{
+				if (config.debug) stdOut.println(moduleName + ": Did not find plaintext match for " + hash.algorithm.text + " hash: '" + hash.getNormalizedRecord() + "'");
+			}
 		}
 		return issues;
 	}

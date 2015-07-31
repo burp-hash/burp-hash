@@ -11,6 +11,7 @@ class Item implements ICookie, IParameter {
 	public static final int PARAMETER = 0;
 	private int type;
 	private Object item;
+	private String value = null;
 
 	Item(IParameter p) {
 		this.type = PARAMETER;
@@ -32,23 +33,38 @@ class Item implements ICookie, IParameter {
 
 	// Methods common to both interfaces
 	@Override
-	public String getName() {
-		if (this.getItemType() == Item.COOKIE) {
+	public String getName() 
+	{
+		if (this.getItemType() == Item.COOKIE) 
+		{
 			return ((ICookie) item).getName();
-		} else {
+		} 
+		else 
+		{
 			return ((IParameter) item).getName();
 		}
 	}
 
 	@Override
-	public String getValue() {
-		if (this.getItemType() == Item.COOKIE) {
-			return ((ICookie) item).getValue();
-		} else {
-			return ((IParameter) item).getValue();
+	public String getValue() 
+	{
+		if (this.getItemType() == Item.COOKIE) 
+		{
+			if (this.value == null) return ((ICookie) item).getValue();
+			return this.value;
+		} 
+		else 
+		{
+			if (this.value == null) return ((IParameter) item).getValue();
+			return this.value;
 		}
 	}
-
+	
+	public void setValue(String s)
+	{
+		this.value = s;
+	}
+	
 	// ICookie methods
 	@Override
 	public String getDomain() {

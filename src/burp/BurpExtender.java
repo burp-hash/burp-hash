@@ -1,6 +1,7 @@
 package burp;
 
 import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
@@ -9,6 +10,7 @@ import java.util.Base64;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.net.URLDecoder;
 
 /**
  * This is the "main" class of the extension. Burp begins by
@@ -125,6 +127,8 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		//First locate params and generate hashes (if enabled)
 		if (!config.reportHashesOnly)
 		{
+			//TODO: something in here may be generating duplicate hashes in memory (not in sqlite)
+			// the dupe is redundant for matching hashes to params
 			hashNewParameters(findNewParameters(baseRequestResponse));
 		}
 		
@@ -168,6 +172,23 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 				{
 					items.add(new Item(param));
 				}
+				try 
+				{
+					String urldecoded = URLDecoder.decode(param.getValue(), "UTF-8");
+					if (!urldecoded.equals(param.getValue()))
+					{
+						if (config.debug) stdOut.println(moduleName + ": Found UrlDecoded Request Parameter: '" + param.getName() + "':'" + urldecoded + "'");
+						if (db.saveParam(urldecoded))
+						{
+							Item i = new Item(param);
+							i.setValue(urldecoded);
+							items.add(i);
+						}
+					}
+				} catch (UnsupportedEncodingException e) 
+				{
+					e.printStackTrace();
+				}
 			}
 		}
 		IResponseInfo resp = helpers.analyzeResponse(baseRequestResponse.getResponse());
@@ -205,13 +226,11 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			param.value = item.getValue();
 			for (HashAlgorithm algorithm : config.hashAlgorithms)
 			{
-				if (config.debug) stdOut.println(moduleName + ": " + algorithm.name.text);
 				if (!algorithm.enabled)
 				{
-					if (config.debug) stdOut.println(" - disabled.");
+					if (config.debug) stdOut.println(moduleName + ": " + algorithm.name.text + " disabled.");
 					continue;
 				}
-				if (config.debug) stdOut.println(" - enabled.");
 				try
 				{
 					ParameterWithHash paramWithHash = new ParameterWithHash();
@@ -243,19 +262,13 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			{
 				result.searchType = searchType;
 				stdOut.println(moduleName + ": Found " + hashAlgorithm.name.text + " hash in " + searchType + ": " + result.record);
-				
 				//TODO: same hash string with different marker values gets lost
-				// ^ Is this a problem? The intent here is to observe hashes of unknown origin. 
-				// Logging how many times we saw it and where is not as valuable as just logging 
-				// it so we can compare it to params we may hash and match later on.  Thoughts?  [TM]
-
 				db.saveHash(result);
 				hashes.add(result);
 				break; //to avoid a false 'match' with a shorter hash algorithm
 			}
 			if (!results.isEmpty())
 			{
-				//if (config.debug) stdOut.println(moduleName + ": Preventing hash mismatch.");
 				//prevent a mismatch on a shorter hash algorithm in descending order:
 				break;
 			}
@@ -302,7 +315,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			String paramValue = db.getParamByHash(hash);
 			if (paramValue != null)
 			{
-				stdOut.println(moduleName + ": " + hash.algorithm.text + " Hash match for parameter'" + paramValue + "' = '" + hash.getNormalizedRecord() + "'");
+				stdOut.println(moduleName + ": " + hash.algorithm.text + " ***HASH MATCH*** for parameter'" + paramValue + "' = '" + hash.getNormalizedRecord() + "'");
 				IHttpRequestResponse[] message;
 				if (hash.searchType.equals(SearchType.REQUEST))
 				{ //apply markers to the request
@@ -327,6 +340,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		                issueText.RemediationBackground);
 				issues.add(issue);
 			}
+			if (config.debug) stdOut.println(moduleName + ": Did not find plaintext match for " + hash.algorithm.text + " hash: '" + hash.getNormalizedRecord() + "'");
 		}
 		return issues;
 	}

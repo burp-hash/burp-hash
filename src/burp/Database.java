@@ -7,6 +7,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Collections;
 import java.util.Set;
 
 import org.sqlite.SQLiteConfig;
@@ -25,11 +26,11 @@ class Database {
 
 	private final String connPrefix = "jdbc:sqlite:";
 	private final String sql_tableCheck = "SELECT name FROM sqlite_master WHERE type='table' AND name='params';";
-	private final String sql_dropTables = "DROP TABLE IF EXISTS params; DROP TABLE IF EXISTS hashes; DROP TABLE IF EXISTS algorithm;";
+	private final String sql_dropTables = "DROP TABLE IF EXISTS params; DROP TABLE IF EXISTS hashes; DROP TABLE IF EXISTS algorithms;";
 	private final String sql_createAlgoTable = "CREATE TABLE algorithms (ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, Name TEXT NOT NULL)";
 	private final String sql_createParamTable = "CREATE TABLE params (ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name TEXT NOT NULL, value TEXT NOT NULL, url TEXT)";
 	private final String sql_createHashTable = "CREATE TABLE hashes (ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, algorithmID INTEGER NOT NULL, paramID INTEGER NOT NULL, value TEXT NOT NULL)";
-	private final String sql_insertAlgo = "INSERT OR REPLACE INTO algorithms(name) VALUES (?)";
+	private final String sql_insertAlgo = "INSERT OR REPLACE INTO algorithms(name, ID) VALUES (?, ?)";
 	private final String sql_insertParams = "INSERT OR REPLACE INTO params(name, value, url) VALUES (?, ?, ?)";
 	private final String sql_insertHashes = "INSERT OR REPLACE INTO hashes(algorithmID, paramID, value) VALUES (?, ?, ?)";
 	private final String sql_hashCheck = "SELECT * FROM params WHERE hash=?;";
@@ -120,9 +121,25 @@ class Database {
 			stmt.executeUpdate(sql_createAlgoTable);
 			stmt.executeUpdate(sql_createParamTable);
 			stmt.executeUpdate(sql_createHashTable);
+			stdOut.println("DB init: hash algorithm count: " + config.hashAlgorithms.size());
+			Collections.reverse(config.hashAlgorithms); //so the db has ascending order
+			for (HashAlgorithm algo : config.hashAlgorithms)
+			{
+				pstmt = conn.prepareStatement(sql_insertAlgo);
+				pstmt.setString(1, algo.name.text);
+				pstmt.setString(2, Integer.toString(algo.id));
+				pstmt.executeUpdate();
+				stdOut.println("Adding Hash Algorithm to DB: " + algo.name.text + ":" + algo.id);
+			}
+			Collections.reverse(config.hashAlgorithms); //back to descending order for hash searching
 			return true;
 		} catch (SQLException e) {
 			stdErr.println(e.getMessage());
+			return false;
+		}
+		catch (Exception ex)
+		{
+			stdErr.println(ex);
 			return false;
 		}
 	}

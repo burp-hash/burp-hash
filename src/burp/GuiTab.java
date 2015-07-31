@@ -94,39 +94,39 @@ class GuiTab implements ITab {
 	}
 
 	private void chkMd5ActionPerformed(ActionEvent evt) {
-		config.isMd5Enabled = !config.isMd5Enabled;
+		config.toggleHashAlgorithm(HashAlgorithmName.MD5, !config.isHashEnabled(HashAlgorithmName.MD5));
 		config.save();
-		burpExtender.loadHashAlgorithms();
+//		burpExtender.loadHashAlgorithms();
 	}
 
 	private void chkSha1ActionPerformed(ActionEvent evt) {
-		config.isSha1Enabled = !config.isSha1Enabled;
+		config.toggleHashAlgorithm(HashAlgorithmName.SHA_1, !config.isHashEnabled(HashAlgorithmName.SHA_1));
 		config.save();
-		burpExtender.loadHashAlgorithms();
+//		burpExtender.loadHashAlgorithms();
 	}
 
 	private void chkSha224ActionPerformed(ActionEvent evt) {
-		config.isSha224Enabled = !config.isSha224Enabled;
+		config.toggleHashAlgorithm(HashAlgorithmName.SHA_224, !config.isHashEnabled(HashAlgorithmName.SHA_224));
 		config.save();
-		burpExtender.loadHashAlgorithms();
+//		burpExtender.loadHashAlgorithms();
 	}
 
 	private void chkSha256ActionPerformed(ActionEvent evt) {
-		config.isSha256Enabled = !config.isSha256Enabled;
+		config.toggleHashAlgorithm(HashAlgorithmName.SHA_256, !config.isHashEnabled(HashAlgorithmName.SHA_256));
 		config.save();
-		burpExtender.loadHashAlgorithms();
+//		burpExtender.loadHashAlgorithms();
 	}
 
 	private void chkSha384ActionPerformed(ActionEvent evt) {
-		config.isSha384Enabled = !config.isSha384Enabled;
+		config.toggleHashAlgorithm(HashAlgorithmName.SHA_384, !config.isHashEnabled(HashAlgorithmName.SHA_384));
 		config.save();
-		burpExtender.loadHashAlgorithms();
+//		burpExtender.loadHashAlgorithms();
 	}
 
 	private void chkSha512ActionPerformed(ActionEvent evt) {
-		config.isSha512Enabled = !config.isSha512Enabled;
+		config.toggleHashAlgorithm(HashAlgorithmName.SHA_512, !config.isHashEnabled(HashAlgorithmName.SHA_512));
 		config.save();
-		burpExtender.loadHashAlgorithms();
+//		burpExtender.loadHashAlgorithms();
 	}
 
 	@Override
@@ -531,12 +531,12 @@ class GuiTab implements ITab {
 	}
 
 	private void loadConfig() {
-		chkMd5.setSelected(config.isMd5Enabled);
-		chkSha1.setSelected(config.isSha1Enabled);
-		chkSha224.setSelected(config.isSha224Enabled);
-		chkSha256.setSelected(config.isSha256Enabled);
-		chkSha384.setSelected(config.isSha384Enabled);
-		chkSha512.setSelected(config.isSha512Enabled);
+		chkMd5.setSelected(config.isHashEnabled(HashAlgorithmName.MD5));
+		chkSha1.setSelected(config.isHashEnabled(HashAlgorithmName.SHA_1));
+		chkSha224.setSelected(config.isHashEnabled(HashAlgorithmName.SHA_224));
+		chkSha256.setSelected(config.isHashEnabled(HashAlgorithmName.SHA_256));
+		chkSha384.setSelected(config.isHashEnabled(HashAlgorithmName.SHA_384));
+		chkSha512.setSelected(config.isHashEnabled(HashAlgorithmName.SHA_512));
 		rbMatch.setSelected(!config.reportHashesOnly);
 		rbReport.setSelected(config.reportHashesOnly);
 		txtFileName.setText(config.databaseFilename);

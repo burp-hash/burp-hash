@@ -8,15 +8,19 @@ import java.util.regex.Pattern;
  */
 class HashAlgorithm
 {
+	int id = 0;
 	int charWidth;
 	HashAlgorithmName name;
 	Pattern pattern;
 	private final String hexRegex = "([a-fA-F0-9]{%s})";
+	boolean enabled;
 	
-	HashAlgorithm(int charWidth, HashAlgorithmName name)
+	HashAlgorithm(int charWidth, HashAlgorithmName name, int id, boolean enabled)
 	{
 		this.charWidth = charWidth;
 		this.name = name;
 		pattern = Pattern.compile(String.format(hexRegex, charWidth));
+		this.id = id;
+		this.enabled = enabled;
 	}
 }

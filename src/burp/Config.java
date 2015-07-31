@@ -7,7 +7,10 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.PrintWriter;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
+import java.util.ArrayList;
 
 /**
  * Manages settings for the extension. It's crude, but it works. This object is serialized
@@ -33,6 +36,12 @@ class Config implements Serializable {
 		cfg.callbacks = c;
 		cfg.stdErr = b.getStdErr();
 		cfg.stdOut = b.getStdOut();
+		if (cfg.hashAlgorithms == null || cfg.hashAlgorithms.isEmpty()) 
+		{
+			cfg.stdOut.println("Hash algorithm configuration is missing ... rebuilding defaults.");
+			cfg.hashAlgorithms = new ArrayList<HashAlgorithm>();
+			cfg.loadHashAlgorithms();
+		}
 		cfg.stdOut.println("Successfully loaded settings.");
 		return cfg;
 	}
@@ -45,14 +54,15 @@ class Config implements Serializable {
 	// TODO: convert the list below to use an EnumSet with the
 	// <HashAlgorithmName> enum:
 	String databaseFilename;
-	boolean isMd5Enabled;
+	/*boolean isMd5Enabled;
 	boolean isSha1Enabled;
 	boolean isSha224Enabled;
 	boolean isSha256Enabled;
 	boolean isSha384Enabled;
-	boolean isSha512Enabled;
-	boolean reportHashesOnly;
-
+	boolean isSha512Enabled;*/
+	boolean reportHashesOnly;	
+	public List<HashAlgorithm> hashAlgorithms = new ArrayList<HashAlgorithm>();
+	
 	/**
 	 * constructor used only when saved config is not found
 	 */
@@ -93,8 +103,46 @@ class Config implements Serializable {
 	 * set default values in Config properties
 	 */
 	private void setDefaults() {
-		isMd5Enabled = isSha1Enabled = isSha256Enabled = true;
-		isSha224Enabled = isSha384Enabled = isSha512Enabled = reportHashesOnly = false;
+		/*isMd5Enabled = isSha1Enabled = isSha256Enabled = true;
+		isSha224Enabled = isSha384Enabled = isSha512Enabled = reportHashesOnly = false;*/
 		databaseFilename = BurpExtender.extensionName + ".sqlite";
+		loadHashAlgorithms();
+	}
+	
+	void loadHashAlgorithms()
+	{
+		hashAlgorithms.add(new HashAlgorithm(128, HashAlgorithmName.SHA_512, 6, false));
+		hashAlgorithms.add(new HashAlgorithm(96, HashAlgorithmName.SHA_384, 5, false));
+		hashAlgorithms.add(new HashAlgorithm(64, HashAlgorithmName.SHA_256, 4, true));
+		hashAlgorithms.add(new HashAlgorithm(56, HashAlgorithmName.SHA_224, 3, false));
+		hashAlgorithms.add(new HashAlgorithm(40, HashAlgorithmName.SHA_1, 2, true));
+		hashAlgorithms.add(new HashAlgorithm(32, HashAlgorithmName.MD5, 1, true));
+	}
+	
+	void toggleHashAlgorithm(HashAlgorithmName name, boolean enabled)
+	{
+		for (HashAlgorithm algo : hashAlgorithms)
+		{
+			if (algo.name.equals(name))
+			{
+				algo.enabled = enabled;
+			}
+		}
+	}
+	
+	boolean isHashEnabled(HashAlgorithmName name)
+	{		
+		if (hashAlgorithms == null || hashAlgorithms.size() < 1) { 
+			stdErr.println("Hash algorithm configuration is missing or empty. Cannot check if " + name.toString() + " is enabled.");
+			return false; 
+		}
+		for (HashAlgorithm algo: hashAlgorithms)
+		{
+			if (algo.name.equals(name))
+			{
+				return algo.enabled;
+			}
+		}
+		return false;
 	}
 }

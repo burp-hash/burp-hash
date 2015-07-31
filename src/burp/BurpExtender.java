@@ -23,8 +23,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 {
 	static final String extensionName = "burp-hash";
 	static final String extensionUrl = "https://burp-hash.github.io/";
-	private static List<HashAlgorithm> hashAlgorithms;
-	private static Map<String, String> hashdb = new ConcurrentHashMap<>();
+//	private static List<HashAlgorithm> hashAlgorithms;
 	//TODO: Use this to determine which hash algos to use on params for hash guessing:
 	static EnumSet<HashAlgorithmName> hashTracker = EnumSet.noneOf(HashAlgorithmName.class);
 	Pattern b64 = Pattern.compile("(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?");
@@ -176,8 +175,9 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 
 	private void findHashes(String s, IHttpRequestResponse baseRequestResponse, SearchType searchType)
 	{
-		for(HashAlgorithm hashAlgorithm : hashAlgorithms)
+		for(HashAlgorithm hashAlgorithm : config.hashAlgorithms)
 		{
+			if (!hashAlgorithm.enabled) { continue; }
 			List<HashRecord> results = findRegex(s, hashAlgorithm.pattern, hashAlgorithm.name);
 			for(HashRecord result : results)
 			{
@@ -456,10 +456,12 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			e.printStackTrace(stdErr);
 			return;
 		}
+		if (config.hashAlgorithms != null || !config.hashAlgorithms.isEmpty())
+		{
+			//stdOut.println("Succesfully loaded hash algorithm configuration.");
+		}
 
-		// populate hashAlgorithms based on settings in config
-		loadHashAlgorithms();
-
+		//TODO: remove these below and just use the db every time
 		//Load persisted hashes/parameters for resuming testing from a previous test:
 		loadHashes();
 		loadHashedParameters();
@@ -490,15 +492,16 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		callbacks.addSuiteTab(guiTab);
 	}
 
-	void loadHashAlgorithms() {
+/*  Refactoring this "config" data to the Config object
+ * 	void loadHashAlgorithms() {
 		hashAlgorithms = new ArrayList<>();
-		if(config.isSha512Enabled) hashAlgorithms.add(new HashAlgorithm(128, HashAlgorithmName.SHA_512));
-		if(config.isSha384Enabled) hashAlgorithms.add(new HashAlgorithm(96, HashAlgorithmName.SHA_384));
-		if(config.isSha256Enabled) hashAlgorithms.add(new HashAlgorithm(64, HashAlgorithmName.SHA_256));
-		if(config.isSha224Enabled) hashAlgorithms.add(new HashAlgorithm(56, HashAlgorithmName.SHA_224));
-		if(config.isSha1Enabled) hashAlgorithms.add(new HashAlgorithm(40, HashAlgorithmName.SHA_1));
-		if(config.isMd5Enabled) hashAlgorithms.add(new HashAlgorithm(32, HashAlgorithmName.MD5));
-	}
+		if(config.isSha512Enabled) hashAlgorithms.add(new HashAlgorithm(128, HashAlgorithmName.SHA_512, 6));
+		if(config.isSha384Enabled) hashAlgorithms.add(new HashAlgorithm(96, HashAlgorithmName.SHA_384, 5));
+		if(config.isSha256Enabled) hashAlgorithms.add(new HashAlgorithm(64, HashAlgorithmName.SHA_256, 4));
+		if(config.isSha224Enabled) hashAlgorithms.add(new HashAlgorithm(56, HashAlgorithmName.SHA_224, 3));
+		if(config.isSha1Enabled) hashAlgorithms.add(new HashAlgorithm(40, HashAlgorithmName.SHA_1, 2));
+		if(config.isMd5Enabled) hashAlgorithms.add(new HashAlgorithm(32, HashAlgorithmName.MD5, 1));
+	}*/
 
 	void loadHashedParameters()
 	{

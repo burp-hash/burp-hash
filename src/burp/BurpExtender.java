@@ -14,7 +14,7 @@ import java.net.URLDecoder;
 
 /**
  * This is the "main" class of the extension. Burp begins by
- * calling {@link BurpHashScanner#registerExtenderCallbacks(IBurpExtenderCallbacks)}.
+ * calling {@link BurpExtender#registerExtenderCallbacks(IBurpExtenderCallbacks)}.
  */
 public class BurpExtender implements IBurpExtender, IScannerCheck 
 {

@@ -250,9 +250,10 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		}
 	}
 
-	private void findHashes(IHttpRequestResponse baseRequestResponse, SearchType searchType)
+	private List<HashRecord> findHashes(IHttpRequestResponse baseRequestResponse, SearchType searchType)
 	{
 		String s;
+		List<HashRecord> currentHashes = new ArrayList<>();
 		if (searchType.equals(SearchType.REQUEST)) {
 			s = new String(baseRequestResponse.getRequest(), StandardCharsets.UTF_8);
 		} else {

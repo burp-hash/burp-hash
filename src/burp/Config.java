@@ -10,7 +10,6 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
-import java.util.ArrayList;
 
 /**
  * Manages settings for the extension. It's crude, but it works. This object is serialized

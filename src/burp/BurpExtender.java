@@ -14,7 +14,7 @@ import java.net.URLDecoder;
 
 /**
  * This is the "main" class of the extension. Burp begins by
- * calling {@link BurpHashScanner#registerExtenderCallbacks(IBurpExtenderCallbacks)}.
+ * calling {@link BurpExtender#registerExtenderCallbacks(IBurpExtenderCallbacks)}.
  */
 public class BurpExtender implements IBurpExtender, IScannerCheck 
 {
@@ -524,7 +524,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			if (!db.verify()) {
 				stdErr.println(moduleName + ": Unable to initialize database.");
 			} else {
-				stdOut.println(moduleName + ": Database initialized and verified.");
+				stdOut.println(moduleName + ": Database verified.");
 			}
 		} else {
 			stdOut.println(moduleName + ": Database verified.");

@@ -14,26 +14,20 @@ import org.sqlite.SQLiteConfig;
  * Handles SQLite database access
  */
 class Database {
-	private BurpExtender burpExtender;
 	private Config config;
 	private Connection conn = null;
-	private IBurpExtenderCallbacks callbacks;
 	private PreparedStatement pstmt = null;
 	private PrintWriter stdErr;
 	private PrintWriter stdOut;
 	private final String moduleName = "DB";
 	private final String connPrefix = "jdbc:sqlite:";
 
-
 	Database(BurpExtender b) {
-		burpExtender = b;
-		callbacks = b.getCallbacks();
 		config = b.getConfig();
 		stdErr = b.getStdErr();
 		stdOut = b.getStdOut();
 		try {
-			// the following line loads the JDBC Driver
-			Class.forName("org.sqlite.JDBC");
+			Class.forName("org.sqlite.JDBC"); // load the JDBC Driver
 		} catch (ClassNotFoundException e) {
 			stdErr.println(e.getMessage());
 		}
@@ -125,7 +119,7 @@ class Database {
 				stdOut.println(" + Adding Hash Algorithm to DB: " + algo.name.text + ", " + algo.id);
 			}
 			Collections.reverse(config.hashAlgorithms); //back to descending order for hash searching
-			stdOut.println(moduleName + ": database reinitialized.");
+			stdOut.println(moduleName + ": Database initialized.");
 			return true;
 		} catch (SQLException e) {
 			stdErr.println(e.getMessage());

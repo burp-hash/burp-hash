@@ -55,7 +55,7 @@ class Config implements Serializable {
 	boolean reportHashesOnly;	
 	boolean debug = true;
 	public List<HashAlgorithm> hashAlgorithms = new ArrayList<HashAlgorithm>();
-	
+
 	/**
 	 * constructor used only when saved config is not found
 	 */
@@ -101,7 +101,7 @@ class Config implements Serializable {
 		databaseFilename = BurpExtender.extensionName + ".sqlite";
 		loadHashAlgorithms();
 	}
-	
+
 	void loadHashAlgorithms()
 	{
 		hashAlgorithms.add(new HashAlgorithm(128, HashAlgorithmName.SHA_512, 6, false));
@@ -111,7 +111,7 @@ class Config implements Serializable {
 		hashAlgorithms.add(new HashAlgorithm(40, HashAlgorithmName.SHA_1, 2, true));
 		hashAlgorithms.add(new HashAlgorithm(32, HashAlgorithmName.MD5, 1, true));
 	}
-	
+
 	void toggleHashAlgorithm(HashAlgorithmName name, boolean enabled)
 	{
 		for (HashAlgorithm algo : hashAlgorithms)
@@ -122,7 +122,7 @@ class Config implements Serializable {
 			}
 		}
 	}
-	
+
 	boolean isHashEnabled(HashAlgorithmName name)
 	{		
 		if (hashAlgorithms == null || hashAlgorithms.size() < 1) { 
@@ -138,7 +138,7 @@ class Config implements Serializable {
 		}
 		return false;
 	}
-	
+
 	int getHashId(HashAlgorithmName name)
 	{
 		for (HashAlgorithm algo : hashAlgorithms)

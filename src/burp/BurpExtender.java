@@ -113,7 +113,6 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	@Override
 	public List<IScanIssue> doPassiveScan(IHttpRequestResponse baseRequestResponse)
 	{
-		String request, response;
 		URL url = helpers.analyzeRequest(baseRequestResponse).getUrl();
 		if (!callbacks.isInScope(url))
 		{
@@ -121,8 +120,6 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			return null;
 		}
 		stdOut.println("Scanner: Begin passive scanning: " + url + "\n...");
-		request = new String(baseRequestResponse.getRequest(), StandardCharsets.UTF_8);
-		response = new String(baseRequestResponse.getResponse(), StandardCharsets.UTF_8);
 		
 		//First locate params and generate hashes (if enabled)
 		if (!config.reportHashesOnly)
@@ -134,8 +131,8 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		
 		//Observe hashes in request/response
 		List<HashRecord> foundHashes = new ArrayList<>();
-		foundHashes.addAll(findHashes(request, baseRequestResponse, SearchType.REQUEST));
-		foundHashes.addAll(findHashes(response, baseRequestResponse, SearchType.RESPONSE));
+		foundHashes.addAll(findHashes(baseRequestResponse, SearchType.REQUEST));
+		foundHashes.addAll(findHashes(baseRequestResponse, SearchType.RESPONSE));
 
 		//Note any discoveries and create burp issues
 		List<IScanIssue> discoveredHashIssues = createHashDiscoveredIssues(foundHashes, baseRequestResponse);
@@ -253,9 +250,14 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		}
 	}
 
-	private List<HashRecord> findHashes(String s, IHttpRequestResponse baseRequestResponse, SearchType searchType)
+	private void findHashes(IHttpRequestResponse baseRequestResponse, SearchType searchType)
 	{
-		List <HashRecord> currentHashes = new ArrayList<>();
+		String s;
+		if (searchType.equals(SearchType.REQUEST)) {
+			s = new String(baseRequestResponse.getRequest(), StandardCharsets.UTF_8);
+		} else {
+			s = new String(baseRequestResponse.getResponse(), StandardCharsets.UTF_8);
+		}
 		for(HashAlgorithm hashAlgorithm : config.hashAlgorithms)
 		{
 			if (!hashAlgorithm.enabled) { continue; }

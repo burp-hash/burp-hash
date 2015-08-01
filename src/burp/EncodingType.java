@@ -2,5 +2,5 @@ package burp;
 
 enum EncodingType
 { 
-	Hex, Base64 
+	Hex, Base64, StringBase64
 };

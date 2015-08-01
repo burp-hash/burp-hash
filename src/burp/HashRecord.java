@@ -21,6 +21,10 @@ class HashRecord
 		{
 			return Utilities.byteArrayToHex(Base64.getDecoder().decode(record)).toLowerCase();
 		}
+		if (encodingType.equals(EncodingType.StringBase64))
+		{
+			return new String(Base64.getDecoder().decode(record)).toLowerCase();
+		}
 		return record.toLowerCase(); 
 	}
 	

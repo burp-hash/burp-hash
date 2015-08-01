@@ -359,16 +359,16 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	{
 		//TODO: Add support for f0:a3:cd style encoding (!MVP)
 		//TODO: Add support for 0xFF style encoding (!MVP)
-		List<HashRecord> hashes = new ArrayList<HashRecord>();
+		List<HashRecord> hashes = new ArrayList<>();
 		Matcher matcher = pattern.matcher(s);
-		boolean isUrlEncoded = false;
-		String urlDecodedMessage = s;
 
 		/**
 		 * urlDecodedMessage.equals(s) does not work as expected because decoder seems to
 		 * return different value than s even when there's nothing to decode
 		 * TODO: find a better way to compare
+		 * TODO: Consider adding support for double-url encoded values (!MVP)
 		 **
+		String urlDecodedMessage = s;
 		try
 		{
 			urlDecodedMessage = URLDecoder.decode(s, StandardCharsets.UTF_8.toString());
@@ -398,35 +398,43 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		}
 
 		// search for Base64-encoded data
-		Matcher b64matcher = b64.matcher(urlDecodedMessage); 
+		Matcher b64matcher = b64.matcher(s);
 		while (b64matcher.find())
 		{
 			String b64EncodedHash = b64matcher.group();
-			String urlDecodedHash = b64EncodedHash;
 
 			// save some cycles
 			if (b64EncodedHash.isEmpty() || b64EncodedHash.length() < 16)
 				continue;
-			//TODO: Consider adding support for double-url encoded values (!MVP)
+
 			try
 			{
-				/**
-				 * B64 regex matches text with words or numbers where number of chars divisible by 4
-				 * so we should handle decoding exceptions gracefully
-				 */
-				String hexHash = Utilities.byteArrayToHex(Base64.getDecoder().decode(urlDecodedHash));
+				// find base64-encoded hex strings representing hashes
+				byte[] byteHash = Base64.getDecoder().decode(b64EncodedHash);
+				String strHash = new String(byteHash, StandardCharsets.UTF_8);
+				matcher = pattern.matcher(strHash);
+				if (matcher.matches()) {
+					stdOut.println(moduleName + ": Base64 Match: " + b64EncodedHash + " <<" + strHash + ">>");
+					HashRecord hash = new HashRecord();
+					int i = s.indexOf(b64EncodedHash);
+					hash.markers.add(new int[] { i, (i + b64EncodedHash.length()) });
+					hash.record = b64EncodedHash;
+					hash.algorithm = algorithm;
+					hash.encodingType = EncodingType.StringBase64;
+					hash.sortMarkers();
+					hashes.add(hash);
+				}
+
+				// find base64-encoded raw hashes
+				String hexHash = Utilities.byteArrayToHex(Base64.getDecoder().decode(b64EncodedHash));
 				matcher = pattern.matcher(hexHash);
 				if (matcher.matches())
 				{
-					stdOut.println(moduleName + ": Base64 Match: " + urlDecodedHash + " <<" + hexHash + ">>");
+					stdOut.println(moduleName + ": Base64 Match: " + b64EncodedHash + " <<" + hexHash + ">>");
 					HashRecord hash = new HashRecord();
-					if (isUrlEncoded) {
-						b64EncodedHash = b64EncodedHash.replace("=", "%3D");
-					}
 					int i = s.indexOf(b64EncodedHash);
 					hash.markers.add(new int[] { i, (i + b64EncodedHash.length()) });
-					//stdOut.println("Markers: " + i + " " + (i + b64EncodedHash.length()));
-					hash.record = urlDecodedHash; //TODO: Consider persisting UrlEncoded version if it was found that way
+					hash.record = b64EncodedHash;
 					hash.algorithm = algorithm;
 					hash.encodingType = EncodingType.Base64;
 					hash.sortMarkers();
@@ -436,9 +444,9 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 					// ^ also see above
 				}
 			}
-			catch (IllegalArgumentException iae)
+			catch (IllegalArgumentException e)
 			{
-				stdErr.println(iae);
+				stdErr.println(e);
 			}
 		}
 		return hashes;

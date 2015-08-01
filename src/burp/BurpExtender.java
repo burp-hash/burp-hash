@@ -524,7 +524,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			if (!db.verify()) {
 				stdErr.println(moduleName + ": Unable to initialize database.");
 			} else {
-				stdOut.println(moduleName + ": Database initialized and verified.");
+				stdOut.println(moduleName + ": Database verified.");
 			}
 		} else {
 			stdOut.println(moduleName + ": Database verified.");

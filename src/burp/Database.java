@@ -119,7 +119,7 @@ class Database {
 				stdOut.println(" + Adding Hash Algorithm to DB: " + algo.name.text + ", " + algo.id);
 			}
 			Collections.reverse(config.hashAlgorithms); //back to descending order for hash searching
-			stdOut.println(moduleName + ": database reinitialized.");
+			stdOut.println(moduleName + ": Database initialized.");
 			return true;
 		} catch (SQLException e) {
 			stdErr.println(e.getMessage());

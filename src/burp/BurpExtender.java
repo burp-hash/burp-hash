@@ -133,11 +133,12 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		}
 		
 		//Observe hashes in request/response
-		findHashes(request, baseRequestResponse, SearchType.REQUEST);
-		findHashes(response, baseRequestResponse, SearchType.RESPONSE);
+		List<HashRecord> foundHashes = new ArrayList<>();
+		foundHashes.addAll(findHashes(request, baseRequestResponse, SearchType.REQUEST));
+		foundHashes.addAll(findHashes(response, baseRequestResponse, SearchType.RESPONSE));
 
 		//Note any discoveries and create burp issues
-		List<IScanIssue> discoveredHashIssues = createHashDiscoveredIssues(baseRequestResponse);
+		List<IScanIssue> discoveredHashIssues = createHashDiscoveredIssues(foundHashes, baseRequestResponse);
 		discoveredHashIssues = sortIssues(discoveredHashIssues);
 		if (discoveredHashIssues.size() > 0)
 		{
@@ -252,8 +253,9 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		}
 	}
 
-	private void findHashes(String s, IHttpRequestResponse baseRequestResponse, SearchType searchType)
+	private List<HashRecord> findHashes(String s, IHttpRequestResponse baseRequestResponse, SearchType searchType)
 	{
+		List <HashRecord> currentHashes = new ArrayList<>();
 		for(HashAlgorithm hashAlgorithm : config.hashAlgorithms)
 		{
 			if (!hashAlgorithm.enabled) { continue; }
@@ -265,6 +267,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 				//TODO: same hash string with different marker values gets lost
 				db.saveHash(result);
 				hashes.add(result);
+				currentHashes.add(result);
 				break; //to avoid a false 'match' with a shorter hash algorithm
 			}
 			if (!results.isEmpty())
@@ -273,12 +276,13 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 				break;
 			}
 		}
+		return currentHashes;
 	}
 	
-	private List<IScanIssue> createHashDiscoveredIssues(IHttpRequestResponse baseRequestResponse)
+	private List<IScanIssue> createHashDiscoveredIssues(List<HashRecord> foundHashes, IHttpRequestResponse baseRequestResponse)
 	{
 		List<IScanIssue> issues = new ArrayList<>();
-		for(HashRecord hash : hashes)
+		for(HashRecord hash : foundHashes)
 		{
 			IHttpRequestResponse[] message;
 			if (hash.searchType.equals(SearchType.REQUEST))

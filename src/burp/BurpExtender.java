@@ -230,10 +230,13 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	
 	private List<Item> findParamsInJson(IHttpRequestResponse msg)
 	{
+		byte[] body;
 		List<String> headers;
 		boolean isJson;
 		List<Item> items = new ArrayList<>();
 		final String jsonRegex = "^content-type:.*json.*$";
+		// TODO: add number support to kvRegex
+		final String kvRegex = "(?:\"([^\"]+)\"\\s*|\'([^\']+)\')\\s*:\\s*(?:\"([^\"]+)\"\\s*|\'([^\']+)\')";
 		Pattern pattern = Pattern.compile(jsonRegex, Pattern.CASE_INSENSITIVE);
 
 		// search the request
@@ -248,7 +251,8 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			}
 		}
 		if (isJson) {
-			byte[] body = Arrays.copyOfRange(req, reqInfo.getBodyOffset(), req.length);
+			body = Arrays.copyOfRange(req, reqInfo.getBodyOffset(), req.length);
+			// "body" should contain some sort of JSON at this point
 			//TODO: parse for name/value pairs
 			//String val = "";
 			//items.add(new Item(val));
@@ -266,7 +270,8 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			}
 		}
 		if (isJson) {
-			byte[] body = Arrays.copyOfRange(resp,  respInfo.getBodyOffset(),  resp.length);
+			body = Arrays.copyOfRange(resp, respInfo.getBodyOffset(), resp.length);
+			// "body" should contain some sort of JSON at this point
 			//TODO: parse for name/value pairs
 			//String val = "";
 			//items.add(new Item(val));

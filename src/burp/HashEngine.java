@@ -8,9 +8,9 @@ import java.security.NoSuchAlgorithmException;
  * Generates hashes in one place.
  */
 
-public class HashEngine
+class HashEngine
 {
-	public static String Hash(String value, HashAlgorithmName algorithm) throws NoSuchAlgorithmException
+	static String Hash(String value, HashAlgorithmName algorithm) throws NoSuchAlgorithmException
 	{
 		MessageDigest md = MessageDigest.getInstance(algorithm.getValue());
 		byte[] digest = md.digest(value.getBytes(StandardCharsets.UTF_8));

@@ -1,6 +1,6 @@
 package burp;
 
-public enum ItemType 
+enum ItemType 
 {
 	COOKIE, PARAMETER, VALUE_ONLY;
 }

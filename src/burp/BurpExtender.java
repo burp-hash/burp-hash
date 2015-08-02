@@ -6,6 +6,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -188,9 +189,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 					e.printStackTrace();
 				}
 			}
-			String wholeRequest = new String(baseRequestResponse.getRequest(), StandardCharsets.UTF_8);
-			items.addAll(findEmailRegex(wholeRequest));
-			items.addAll(findParamsInJson(wholeRequest));
+			items.addAll(findEmailRegex(new String(baseRequestResponse.getRequest(), StandardCharsets.UTF_8)));
 		}
 		IResponseInfo resp = helpers.analyzeResponse(baseRequestResponse.getResponse());
 		if (resp != null) 
@@ -207,11 +206,10 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 
 				}
 			}
-			String wholeResponse = new String(baseRequestResponse.getResponse(), StandardCharsets.UTF_8);
-			items.addAll(findEmailRegex(wholeResponse));
-			items.addAll(findParamsInJson(wholeResponse));
+			items.addAll(findEmailRegex(new String(baseRequestResponse.getResponse(), StandardCharsets.UTF_8)));
 			// if (config.debug) stdOut.println("Items stored: " + items.size());
 		}
+		items.addAll(findParamsInJson(baseRequestResponse));
 		return items;
 	}
 	
@@ -230,15 +228,48 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		return items;
 	}
 	
-	private List<Item> findParamsInJson(String msg)
+	private List<Item> findParamsInJson(IHttpRequestResponse msg)
 	{
+		List<String> headers;
+		boolean isJson;
 		List<Item> items = new ArrayList<>();
-		if (Pattern.compile(Pattern.quote("json"), Pattern.CASE_INSENSITIVE).matcher(msg).find())
-		{
-			//TODO: the message says "json" presumably in the content type header, which could include
-			// jsonp, jsonrpc, and other json* variants.  So, parse the string for name/value pairs...
-			//String value = "";
-			//items.add(new Item(val));			
+		final String jsonRegex = "^content-type:.*json.*$";
+		Pattern pattern = Pattern.compile(jsonRegex, Pattern.CASE_INSENSITIVE);
+
+		// search the request
+		byte[] req = msg.getRequest();
+		IRequestInfo reqInfo = helpers.analyzeRequest(req);
+		headers = reqInfo.getHeaders();
+		isJson = false;
+		for (String header : headers) {
+			if (pattern.matcher(header).matches()) {
+				isJson = true;
+				break;
+			}
+		}
+		if (isJson) {
+			byte[] body = Arrays.copyOfRange(req, reqInfo.getBodyOffset(), req.length);
+			//TODO: parse for name/value pairs
+			//String val = "";
+			//items.add(new Item(val));
+		}
+
+		// search the response
+		byte[] resp = msg.getResponse();
+		IResponseInfo respInfo = helpers.analyzeResponse(resp);
+		headers = respInfo.getHeaders();
+		isJson = false;
+		for (String header : headers) {
+			if (pattern.matcher(header).matches()) {
+				isJson = true;
+				break;
+			}
+		}
+		if (isJson) {
+			byte[] body = Arrays.copyOfRange(resp,  respInfo.getBodyOffset(),  resp.length);
+			//TODO: parse for name/value pairs
+			//String val = "";
+			//items.add(new Item(val));
 		}
 		return items;
 	}

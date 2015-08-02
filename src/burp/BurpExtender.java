@@ -188,6 +188,9 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 					e.printStackTrace();
 				}
 			}
+			String wholeRequest = new String(baseRequestResponse.getRequest(), StandardCharsets.UTF_8);
+			items.addAll(findEmailRegex(wholeRequest));
+			items.addAll(findParamsInJson(wholeRequest));
 		}
 		IResponseInfo resp = helpers.analyzeResponse(baseRequestResponse.getResponse());
 		if (resp != null) 
@@ -204,7 +207,38 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 
 				}
 			}
+			String wholeResponse = new String(baseRequestResponse.getResponse(), StandardCharsets.UTF_8);
+			items.addAll(findEmailRegex(wholeResponse));
+			items.addAll(findParamsInJson(wholeResponse));
 			// if (config.debug) stdOut.println("Items stored: " + items.size());
+		}
+		return items;
+	}
+	
+	private List<Item> findEmailRegex(String msg)
+	{
+		List<Item> items = new ArrayList<>();
+		final String emailRegex = "[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,4}";
+		Pattern pattern = Pattern.compile(emailRegex);
+		Matcher matcher = pattern.matcher(msg);
+		while (matcher.find())
+		{
+			String email = matcher.group();
+			if (config.debug) stdOut.println(moduleName + ": Found Email by Regex: " + email);			
+			items.add(new Item(email));
+		}
+		return items;
+	}
+	
+	private List<Item> findParamsInJson(String msg)
+	{
+		List<Item> items = new ArrayList<>();
+		if (Pattern.compile(Pattern.quote("json"), Pattern.CASE_INSENSITIVE).matcher(msg).find())
+		{
+			//TODO: the message says "json" presumably in the content type header, which could include
+			// jsonp, jsonrpc, and other json* variants.  So, parse the string for name/value pairs...
+			//String value = "";
+			//items.add(new Item(val));			
 		}
 		return items;
 	}
@@ -262,7 +296,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		for(HashAlgorithm hashAlgorithm : config.hashAlgorithms)
 		{
 			if (!hashAlgorithm.enabled) { continue; }
-			List<HashRecord> results = findRegex(s, hashAlgorithm.pattern, hashAlgorithm.name);
+			List<HashRecord> results = findHashRegex(s, hashAlgorithm.pattern, hashAlgorithm.name);
 			for(HashRecord result : results)
 			{
 				result.searchType = searchType;
@@ -355,7 +389,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		return issues;
 	}
 
-	private List<HashRecord> findRegex(String s, Pattern pattern, HashAlgorithmName algorithm)
+	private List<HashRecord> findHashRegex(String s, Pattern pattern, HashAlgorithmName algorithm)
 	{
 		//TODO: Add support for f0:a3:cd style encoding (!MVP)
 		//TODO: Add support for 0xFF style encoding (!MVP)

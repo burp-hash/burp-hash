@@ -235,9 +235,11 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		boolean isJson;
 		List<Item> items = new ArrayList<>();
 		final String jsonRegex = "^content-type:.*json.*$";
-		// TODO: add number support to kvRegex
+		// TODO: add support for number values to kvRegex and supporting code below
 		final String kvRegex = "(?:\"([^\"]+)\"\\s*|\'([^\']+)\')\\s*:\\s*(?:\"([^\"]+)\"\\s*|\'([^\']+)\')";
-		Pattern pattern = Pattern.compile(jsonRegex, Pattern.CASE_INSENSITIVE);
+		Matcher matcher;
+		Pattern patJson = Pattern.compile(jsonRegex, Pattern.CASE_INSENSITIVE);
+		Pattern patKeyValue = Pattern.compile(kvRegex);
 
 		// search the request
 		byte[] req = msg.getRequest();
@@ -245,7 +247,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		headers = reqInfo.getHeaders();
 		isJson = false;
 		for (String header : headers) {
-			if (pattern.matcher(header).matches()) {
+			if (patJson.matcher(header).matches()) {
 				isJson = true;
 				break;
 			}
@@ -253,9 +255,31 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		if (isJson) {
 			body = Arrays.copyOfRange(req, reqInfo.getBodyOffset(), req.length);
 			// "body" should contain some sort of JSON at this point
-			//TODO: parse for name/value pairs
-			//String val = "";
-			//items.add(new Item(val));
+			matcher = patKeyValue.matcher(new String(body, StandardCharsets.UTF_8));
+			while (matcher.find()) {
+				String key;
+				String value;
+				if (matcher.group(1) == null) {
+					if (matcher.group(2) == null) {
+						break;
+					} else {
+						key = matcher.group(2);
+					}
+				} else {
+					key = matcher.group(1);
+				}
+				if (matcher.group(3) == null) {
+					if (matcher.group(4) == null) {
+						break;
+					} else {
+						value = matcher.group(4);
+					}
+				} else {
+					value = matcher.group(3);
+				}
+				//stdOut.println("Key: "+key+"   |||   value: "+value);
+				items.add(new Item(value));
+			}
 		}
 
 		// search the response
@@ -264,7 +288,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		headers = respInfo.getHeaders();
 		isJson = false;
 		for (String header : headers) {
-			if (pattern.matcher(header).matches()) {
+			if (patJson.matcher(header).matches()) {
 				isJson = true;
 				break;
 			}
@@ -272,9 +296,31 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		if (isJson) {
 			body = Arrays.copyOfRange(resp, respInfo.getBodyOffset(), resp.length);
 			// "body" should contain some sort of JSON at this point
-			//TODO: parse for name/value pairs
-			//String val = "";
-			//items.add(new Item(val));
+			matcher = patKeyValue.matcher(new String(body, StandardCharsets.UTF_8));
+			while (matcher.find()) {
+				String key;
+				String value;
+				if (matcher.group(1) == null) {
+					if (matcher.group(2) == null) {
+						break;
+					} else {
+						key = matcher.group(2);
+					}
+				} else {
+					key = matcher.group(1);
+				}
+				if (matcher.group(3) == null) {
+					if (matcher.group(4) == null) {
+						break;
+					} else {
+						value = matcher.group(4);
+					}
+				} else {
+					value = matcher.group(3);
+				}
+				//stdOut.println("Key: "+key+"   |||   value: "+value);
+				items.add(new Item(value));
+			}
 		}
 		return items;
 	}

@@ -6,6 +6,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -188,9 +189,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 					e.printStackTrace();
 				}
 			}
-			String wholeRequest = new String(baseRequestResponse.getRequest(), StandardCharsets.UTF_8);
-			items.addAll(findEmailRegex(wholeRequest));
-			items.addAll(findParamsInJson(wholeRequest));
+			items.addAll(findEmailRegex(new String(baseRequestResponse.getRequest(), StandardCharsets.UTF_8)));
 		}
 		IResponseInfo resp = helpers.analyzeResponse(baseRequestResponse.getResponse());
 		if (resp != null) 
@@ -207,11 +206,10 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 
 				}
 			}
-			String wholeResponse = new String(baseRequestResponse.getResponse(), StandardCharsets.UTF_8);
-			items.addAll(findEmailRegex(wholeResponse));
-			items.addAll(findParamsInJson(wholeResponse));
+			items.addAll(findEmailRegex(new String(baseRequestResponse.getResponse(), StandardCharsets.UTF_8)));
 			// if (config.debug) stdOut.println("Items stored: " + items.size());
 		}
+		items.addAll(findParamsInJson(baseRequestResponse));
 		return items;
 	}
 	
@@ -230,15 +228,99 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		return items;
 	}
 	
-	private List<Item> findParamsInJson(String msg)
+	private List<Item> findParamsInJson(IHttpRequestResponse msg)
 	{
+		byte[] body;
+		List<String> headers;
+		boolean isJson;
 		List<Item> items = new ArrayList<>();
-		if (Pattern.compile(Pattern.quote("json"), Pattern.CASE_INSENSITIVE).matcher(msg).find())
-		{
-			//TODO: the message says "json" presumably in the content type header, which could include
-			// jsonp, jsonrpc, and other json* variants.  So, parse the string for name/value pairs...
-			//String value = "";
-			//items.add(new Item(val));			
+		final String jsonRegex = "^content-type:.*json.*$";
+		// TODO: add support for number values to kvRegex and supporting code below
+		final String kvRegex = "(?:\"([^\"]+)\"\\s*|\'([^\']+)\')\\s*:\\s*(?:\"([^\"]+)\"\\s*|\'([^\']+)\')";
+		Matcher matcher;
+		Pattern patJson = Pattern.compile(jsonRegex, Pattern.CASE_INSENSITIVE);
+		Pattern patKeyValue = Pattern.compile(kvRegex);
+
+		// search the request
+		byte[] req = msg.getRequest();
+		IRequestInfo reqInfo = helpers.analyzeRequest(req);
+		headers = reqInfo.getHeaders();
+		isJson = false;
+		for (String header : headers) {
+			if (patJson.matcher(header).matches()) {
+				isJson = true;
+				break;
+			}
+		}
+		if (isJson) {
+			body = Arrays.copyOfRange(req, reqInfo.getBodyOffset(), req.length);
+			// "body" should contain some sort of JSON at this point
+			matcher = patKeyValue.matcher(new String(body, StandardCharsets.UTF_8));
+			while (matcher.find()) {
+				String key;
+				String value;
+				if (matcher.group(1) == null) {
+					if (matcher.group(2) == null) {
+						break;
+					} else {
+						key = matcher.group(2);
+					}
+				} else {
+					key = matcher.group(1);
+				}
+				if (matcher.group(3) == null) {
+					if (matcher.group(4) == null) {
+						break;
+					} else {
+						value = matcher.group(4);
+					}
+				} else {
+					value = matcher.group(3);
+				}
+				//stdOut.println("Key: "+key+"   |||   value: "+value);
+				items.add(new Item(value));
+			}
+		}
+
+		// search the response
+		byte[] resp = msg.getResponse();
+		IResponseInfo respInfo = helpers.analyzeResponse(resp);
+		headers = respInfo.getHeaders();
+		isJson = false;
+		for (String header : headers) {
+			if (patJson.matcher(header).matches()) {
+				isJson = true;
+				break;
+			}
+		}
+		if (isJson) {
+			body = Arrays.copyOfRange(resp, respInfo.getBodyOffset(), resp.length);
+			// "body" should contain some sort of JSON at this point
+			matcher = patKeyValue.matcher(new String(body, StandardCharsets.UTF_8));
+			while (matcher.find()) {
+				String key;
+				String value;
+				if (matcher.group(1) == null) {
+					if (matcher.group(2) == null) {
+						break;
+					} else {
+						key = matcher.group(2);
+					}
+				} else {
+					key = matcher.group(1);
+				}
+				if (matcher.group(3) == null) {
+					if (matcher.group(4) == null) {
+						break;
+					} else {
+						value = matcher.group(4);
+					}
+				} else {
+					value = matcher.group(3);
+				}
+				//stdOut.println("Key: "+key+"   |||   value: "+value);
+				items.add(new Item(value));
+			}
 		}
 		return items;
 	}

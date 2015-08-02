@@ -12,19 +12,19 @@ class Item implements ICookie, IParameter {
 	private String value = null;
 
 	Item(IParameter p) {
-		this.type = ItemType.PARAMETER;
-		this.item = p;
+		type = ItemType.PARAMETER;
+		item = p;
 	}
 
 	Item(ICookie c) {
-		this.type = ItemType.COOKIE;
-		this.item = c;
+		type = ItemType.COOKIE;
+		item = c;
 	}
 	
 	Item(String s) 
 	{
-		this.type = ItemType.VALUE_ONLY;
-		this.item = s;
+		type = ItemType.VALUE_ONLY;
+		item = s;
 	}
 
 	Object getItem() {
@@ -32,14 +32,14 @@ class Item implements ICookie, IParameter {
 	}
 
 	ItemType getItemType() {
-		return this.type;
+		return type;
 	}
 
 	// Methods common to both interfaces
 	@Override
 	public String getName() 
  	{
-		switch (this.type)
+		switch (type)
 		{
 			case COOKIE:
 				return ((ICookie) item).getName();
@@ -54,29 +54,29 @@ class Item implements ICookie, IParameter {
 	@Override
 	public String getValue() 
 	{
-		switch (this.type)
+		switch (type)
 		{
 			case COOKIE:
-				if (this.value == null) return ((ICookie) item).getValue();
-				return this.value;
+				if (value == null) return ((ICookie) item).getValue();
+				return value;
 			case PARAMETER:
-				if (this.value == null) return ((IParameter) item).getValue();
-				return this.value;
+				if (value == null) return ((IParameter) item).getValue();
+				return value;
 			case VALUE_ONLY:
-				return this.value;
+				return value;
 		}
 		return null;
 	}
 	
 	public void setValue(String s)
 	{
-		this.value = s;
+		value = s;
 	}
 	
 	// ICookie methods
 	@Override
 	public String getDomain() {
-		if (this.getItemType() == ItemType.COOKIE) {
+		if (getItemType().equals(ItemType.COOKIE)) {
 			return ((ICookie) item).getDomain();
 		} else {
 			return null;
@@ -85,7 +85,7 @@ class Item implements ICookie, IParameter {
 
 	@Override
 	public Date getExpiration() {
-		if (this.getItemType() == ItemType.COOKIE) {
+		if (getItemType().equals(ItemType.COOKIE)) {
 			return ((ICookie) item).getExpiration();
 		} else {
 			return null;
@@ -95,7 +95,7 @@ class Item implements ICookie, IParameter {
 	// IParameter methods
 	@Override
 	public byte getType() {
-		if (this.getItemType() == ItemType.PARAMETER) {
+		if (getItemType().equals(ItemType.PARAMETER)) {
 			return ((IParameter) item).getType();
 		} else {
 			return -1;
@@ -104,7 +104,7 @@ class Item implements ICookie, IParameter {
 
 	@Override
 	public int getNameStart() {
-		if (this.getItemType() == ItemType.PARAMETER) {
+		if (getItemType().equals(ItemType.PARAMETER)) {
 			return ((IParameter) item).getNameStart();
 		} else {
 			return -1;
@@ -113,7 +113,7 @@ class Item implements ICookie, IParameter {
 
 	@Override
 	public int getNameEnd() {
-		if (this.getItemType() == ItemType.PARAMETER) {
+		if (getItemType().equals(ItemType.PARAMETER)) {
 			return ((IParameter) item).getNameEnd();
 		} else {
 			return -1;
@@ -122,7 +122,7 @@ class Item implements ICookie, IParameter {
 
 	@Override
 	public int getValueStart() {
-		if (this.getItemType() == ItemType.PARAMETER) {
+		if (getItemType().equals(ItemType.PARAMETER)) {
 			return ((IParameter) item).getValueStart();
 		} else {
 			return -1;
@@ -131,7 +131,7 @@ class Item implements ICookie, IParameter {
 
 	@Override
 	public int getValueEnd() {
-		if (this.getItemType() == ItemType.PARAMETER) {
+		if (getItemType().equals(ItemType.PARAMETER)) {
 			return ((IParameter) item).getValueEnd();
 		} else {
 			return -1;

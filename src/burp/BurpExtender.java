@@ -23,15 +23,14 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	static final String extensionUrl = "https://burp-hash.github.io/";
 	public Pattern b64Regex = Pattern.compile("(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?");
 	public Pattern emailRegex = Pattern.compile("[^=\"&;:\\s]*[a-zA-Z0-9-_\\.]+@[a-zA-Z0-9-\\.]+.[a-zA-Z]+");
-	//public Pattern emailRegex2 = Pattern.compile("[^=\"&;:\\s]*[a-zA-Z0-9-_\\.]+@[a-zA-Z0-9-]+.[a-zA-Z]+");
+	public Pattern ccRegex = Pattern.compile("[0-9]{4}[-]*[0-9]{4}[-]*[0-9]{4}[-]*[0-9]{4}");
 	private IBurpExtenderCallbacks callbacks;
 	private Config config;
 	private Database db;
 	private GuiTab guiTab;
 	private List<HashRecord> hashes = new ArrayList<>();
-	private IExtensionHelpers helpers;
 	private List<IScanIssue> issues = new ArrayList<>();
-	private List<Parameter> parameters = new ArrayList<>();
+	private IExtensionHelpers helpers;
 	private PrintWriter stdErr;
 	private PrintWriter stdOut;
 
@@ -92,6 +91,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			return null;
 		}
 		stdOut.println("Scanner: Begin passive scanning: " + url + "\n...");
+		if (config.reportHashesOnly && config.debug) stdOut.println(moduleName + ": reporting observed hashes only, hashing parameters is disabled.");
 		
 		//First locate params and generate hashes (if enabled)
 		if (!config.reportHashesOnly)
@@ -102,12 +102,12 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		}
 		
 		//Observe hashes in request/response
-		List<HashRecord> foundHashes = new ArrayList<>();
-		foundHashes.addAll(findHashes(baseRequestResponse, SearchType.REQUEST));
-		foundHashes.addAll(findHashes(baseRequestResponse, SearchType.RESPONSE));
+		hashes = new ArrayList<>();
+		findHashes(baseRequestResponse, SearchType.REQUEST);
+		findHashes(baseRequestResponse, SearchType.RESPONSE);
 
 		//Note any discoveries and create burp issues
-		List<IScanIssue> discoveredHashIssues = createHashDiscoveredIssues(foundHashes, baseRequestResponse);
+		List<IScanIssue> discoveredHashIssues = createHashDiscoveredIssues(baseRequestResponse);
 		discoveredHashIssues = sortIssues(discoveredHashIssues);
 		if (discoveredHashIssues.size() > 0)
 		{
@@ -202,7 +202,12 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		List<Item> items = new ArrayList<>();
 		for (String header : headers)
 		{
-			if (config.debug) stdOut.println(moduleName + ": header = " + header);
+//			if (config.debug) stdOut.println(moduleName + ": header = " + header);
+			if (header.startsWith("Date:") || header.startsWith("Content-Length:"))
+			{
+				//Don't want to fill the db with server response time stamps and content length headers
+				continue;
+			}
 			if (db.saveParam(header))
 			{
 				items.add(new Item(header)); //save and hash entire header
@@ -254,8 +259,9 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		return items;
 	}
 	
-	protected void hashNewParameters(List<Item> items)
+	protected List<Parameter> hashNewParameters(List<Item> items)
 	{
+		List<Parameter> parameters = new ArrayList<>();
 		for(Item item : items)
 		{
 			//TODO: validate this works:
@@ -294,44 +300,71 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			}
 			parameters.add(param);
 		}
+		return parameters;
 	}
 
-	protected List<HashRecord> findHashes(IHttpRequestResponse baseRequestResponse, SearchType searchType)
+	protected void findHashes(IHttpRequestResponse baseRequestResponse, SearchType searchType)
 	{
 		String s;
-		List<HashRecord> currentHashes = new ArrayList<>();
-		if (searchType.equals(SearchType.REQUEST)) {
+		if (searchType.equals(SearchType.REQUEST)) 
+		{
 			s = new String(baseRequestResponse.getRequest(), StandardCharsets.UTF_8);
-		} else {
+		} 
+		else 
+		{
 			s = new String(baseRequestResponse.getResponse(), StandardCharsets.UTF_8);
 		}
 		for(HashAlgorithm hashAlgorithm : config.hashAlgorithms)
 		{
-			if (!hashAlgorithm.enabled) { continue; }
-			List<HashRecord> results = findHashRegex(s, hashAlgorithm.pattern, hashAlgorithm.name);
-			for(HashRecord result : results)
+			if (config.debug) stdOut.println(moduleName + ": Searching for " + hashAlgorithm.name.text + " hashes.");
+			findHashRegex(s, hashAlgorithm.pattern, hashAlgorithm);
+			for(HashRecord hash : hashes)
 			{
-				result.searchType = searchType;
-				stdOut.println(moduleName + ": Found " + hashAlgorithm.name.text + " hash in " + searchType + ": " + result.record);
+				hash.searchType = searchType;
+				stdOut.println(moduleName + ": Found " + hashAlgorithm.name.text + " hash in " + searchType + ": " + hash.record);
 				//TODO: same hash string with different marker values gets lost
-				db.saveHash(result);
-				hashes.add(result);
-				currentHashes.add(result);
+				// ^ No longer believe this is true, need to test. [TM]
+				db.saveHash(hash);
+				if (!hashAlgorithm.enabled)
+				{
+					config.toggleHashAlgorithm(hashAlgorithm.name, true);
+					if (config.debug) stdOut.println(moduleName + ": Dynamic hash detection enabled " + hashAlgorithm.name.text + ".");
+					//rehashSavedParameters(hashAlgorithm);
+				}
 				break; //to avoid a false 'match' with a shorter hash algorithm
 			}
-			if (!results.isEmpty())
-			{
-				//prevent a mismatch on a shorter hash algorithm in descending order:
-				break;
-			}
 		}
-		return currentHashes;
 	}
 	
-	protected List<IScanIssue> createHashDiscoveredIssues(List<HashRecord> foundHashes, IHttpRequestResponse baseRequestResponse)
+	private void rehashSavedParameters(HashAlgorithm algorithm)
+	{
+		List<String> paramsWithoutNewHash = db.getParamsWithoutHashType(algorithm);
+		if (config.debug) stdOut.println(moduleName + ": Preparing to update " + paramsWithoutNewHash.size() + 
+				" parameters with " + algorithm.name.text + " hashes...");
+		for (String param : paramsWithoutNewHash)
+		{
+			try 
+			{
+				HashRecord hash = new HashRecord();
+				hash.algorithm = algorithm;
+				hash.record = HashEngine.Hash(param, algorithm.name);
+				db.saveHash(hash);
+			}
+			catch (NoSuchAlgorithmException e) 
+			{
+				stdErr.println(moduleName + ": " + e);
+			}
+		}
+	}
+	
+	protected List<IScanIssue> createHashDiscoveredIssues(IHttpRequestResponse baseRequestResponse)
 	{
 		List<IScanIssue> issues = new ArrayList<>();
-		for(HashRecord hash : foundHashes)
+		if (baseRequestResponse == null)
+		{
+			throw new IllegalArgumentException(moduleName + ": base request/response object cannot be null.");
+		}
+		for(HashRecord hash : hashes)
 		{
 			IHttpRequestResponse[] message;
 			if (hash.searchType.equals(SearchType.REQUEST))
@@ -368,7 +401,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			String paramValue = db.getParamByHash(hash);
 			if (paramValue != null)
 			{
-				stdOut.println(moduleName + ": " + hash.algorithm.text + " ***HASH MATCH*** for parameter'" + paramValue + "' = '" + hash.getNormalizedRecord() + "'");
+				stdOut.println(moduleName + ": " + hash.algorithm.name.text + " ***HASH MATCH*** for parameter'" + paramValue + "' = '" + hash.getNormalizedRecord() + "'");
 				IHttpRequestResponse[] message;
 				if (hash.searchType.equals(SearchType.REQUEST))
 				{ //apply markers to the request
@@ -395,52 +428,68 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			}
 			else
 			{
-				if (config.debug) stdOut.println(moduleName + ": Did not find plaintext match for " + hash.algorithm.text + " hash: '" + hash.getNormalizedRecord() + "'");
+				if (config.debug) stdOut.println(moduleName + ": Did not find plaintext match for " + hash.algorithm.name.text + " hash: '" + hash.getNormalizedRecord() + "'");
 			}
 		}
 		return issues;
 	}
+	
+	protected boolean isDupeHash(HashRecord hash)
+	{
+		//if the markers show this starts at the same spot on the same request/response object
+		//and the longer record includes the shorter record, this is either an exact dupe or 
+		//a larger hash (e.g. SHA-512) mistaken for a shorter hash (e.g. SHA-256)
+		for (HashRecord h : hashes)
+		{
+			if (h.markers.get(0).equals(hash.markers.get(0)))
+			{
+				if (h.record.length() > hash.record.length())
+				{
+					if (h.record.startsWith(hash.record))
+					{
+						return true;
+					}
+				}
+				else
+				{
+					if (hash.record.startsWith(h.record))
+					{
+						return true;
+					}
+				}
+			}
+		}
+		return false;
+	}
 
-	protected List<HashRecord> findHashRegex(String s, Pattern pattern, HashAlgorithmName algorithm)
+	protected void findHashRegex(String s, Pattern pattern, HashAlgorithm algorithm)
 	{
 		//TODO: Add support for f0:a3:cd style encoding (!MVP)
 		//TODO: Add support for 0xFF style encoding (!MVP)
-		List<HashRecord> hashes = new ArrayList<>();
+		//TODO: Consider adding support for double-url encoded values (!MVP)
 		Matcher matcher = pattern.matcher(s);
-
-		/**
-		 * urlDecodedMessage.equals(s) does not work as expected because decoder seems to
-		 * return different value than s even when there's nothing to decode
-		 * TODO: find a better way to compare
-		 * TODO: Consider adding support for double-url encoded values (!MVP)
-		 **
-		String urlDecodedMessage = s;
-		try
-		{
-			urlDecodedMessage = URLDecoder.decode(s, StandardCharsets.UTF_8.toString());
-			if (!urlDecodedMessage.equals(s))
-			{
-				//stdOut.println("URL Encoding Detected");
-				isUrlEncoded = true;
-			}
-		}
-		catch (java.io.UnsupportedEncodingException uee) {
-			stdErr.println(uee);
-		}
-		/*******/
-
+		stdOut.println("pattern: " + algorithm.hexRegex);
 		// search for hashes in raw request/response
 		while (matcher.find())
 		{
+			String result = matcher.group();
+			stdOut.println("Actual: " + result.length() + " Target: " + algorithm.charWidth);
+			//enforce char length of the match here, rather than regex which has false positives
+			if (result.length() != algorithm.charWidth)
+			{
+				continue;
+			}
+			stdOut.println("Actual: " + result.length() + " Target: " + algorithm.charWidth);
 			HashRecord hash = new HashRecord();
 			hash.markers.add(new int[] { matcher.start(), matcher.end() });
 			hash.record = matcher.group();
 			hash.algorithm = algorithm;
 			hash.encodingType = EncodingType.Hex;
 			hash.sortMarkers();
-			hashes.add(hash);
-			//TODO: if hash algorithm was previously not enabled in config, enable it 
-			//and generate hashes on all previously saved parameters (probably !MVP)
+			if (!isDupeHash(hash))
+			{
+				hashes.add(hash);
+			}
 		}
 
 		// search for Base64-encoded data
@@ -448,18 +497,20 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		while (b64matcher.find())
 		{
 			String b64EncodedHash = b64matcher.group();
-
 			// save some cycles
 			if (b64EncodedHash.isEmpty() || b64EncodedHash.length() < 16)
+			{
 				continue;
-
+			}
 			try
 			{
 				// find base64-encoded hex strings representing hashes
 				byte[] byteHash = Base64.getDecoder().decode(b64EncodedHash);
 				String strHash = new String(byteHash, StandardCharsets.UTF_8);
 				matcher = pattern.matcher(strHash);
-				if (matcher.matches()) {
+				//enforce char width here to prevent smaller hashes from false positives with larger hashes:
+				if (matcher.matches() && matcher.group().length() == algorithm.charWidth)
+				{
 					stdOut.println(moduleName + ": Base64 Match: " + b64EncodedHash + " <<" + strHash + ">>");
 					HashRecord hash = new HashRecord();
 					int i = s.indexOf(b64EncodedHash);
@@ -468,13 +519,17 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 					hash.algorithm = algorithm;
 					hash.encodingType = EncodingType.StringBase64;
 					hash.sortMarkers();
-					hashes.add(hash);
+					if (!isDupeHash(hash))
+					{
+						hashes.add(hash);
+					}
 				}
 
 				// find base64-encoded raw hashes
 				String hexHash = Utilities.byteArrayToHex(Base64.getDecoder().decode(b64EncodedHash));
 				matcher = pattern.matcher(hexHash);
-				if (matcher.matches())
+				//enforce char width here to prevent smaller hashes from false positives with larger hashes:
+				if (matcher.matches() && matcher.group().length() == algorithm.charWidth)
 				{
 					stdOut.println(moduleName + ": Base64 Match: " + b64EncodedHash + " <<" + hexHash + ">>");
 					HashRecord hash = new HashRecord();
@@ -484,10 +539,10 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 					hash.algorithm = algorithm;
 					hash.encodingType = EncodingType.Base64;
 					hash.sortMarkers();
-					hashes.add(hash);
-					//TODO: if hash algorithm was previously not enabled in config, enable it 
-					//and generate hashes on all previously saved parameters (probably !MVP)
-					// ^ also see above
+					if (!isDupeHash(hash))
+					{
+						hashes.add(hash);
+					}
 				}
 			}
 			catch (IllegalArgumentException e)
@@ -495,7 +550,6 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 				stdErr.println(e);
 			}
 		}
-		return hashes;
 	}
 	
 	IBurpExtenderCallbacks getCallbacks() {

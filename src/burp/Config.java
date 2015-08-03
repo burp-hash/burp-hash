@@ -59,7 +59,8 @@ class Config implements Serializable {
 	/**
 	 * constructor used only when saved config is not found
 	 */
-	private Config(BurpExtender b) {
+	private Config(BurpExtender b) 
+	{
 		callbacks = b.getCallbacks();
 		stdErr = b.getStdErr();
 		stdOut = b.getStdOut();
@@ -70,7 +71,8 @@ class Config implements Serializable {
 	/**
 	 * reset to default config
 	 */
-	void reset() {
+	void reset() 
+	{
 		callbacks.saveExtensionSetting(BurpExtender.extensionName, null);
 		setDefaults();
 	}
@@ -78,13 +80,16 @@ class Config implements Serializable {
 	/**
 	 * save serialized Config object into Burp extension settings
 	 */
-	void save() {
+	void save() 
+	{
 		ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-		try {
+		try 
+		{
 			ObjectOutputStream out = new ObjectOutputStream(bytes);
 			out.writeObject(this);
 		}
-		catch (IOException e) {
+		catch (IOException e) 
+		{
 			stdErr.println(moduleName + ": Error saving configuration: " + e);
 			return;
 		}
@@ -95,9 +100,8 @@ class Config implements Serializable {
 	/**
 	 * set default values in Config properties
 	 */
-	private void setDefaults() {
-		/*isMd5Enabled = isSha1Enabled = isSha256Enabled = true;
-		isSha224Enabled = isSha384Enabled = isSha512Enabled = reportHashesOnly = false;*/
+	private void setDefaults() 
+	{
 		databaseFilename = BurpExtender.extensionName + ".sqlite";
 		loadHashAlgorithms();
 	}

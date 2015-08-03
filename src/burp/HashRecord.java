@@ -11,7 +11,7 @@ class HashRecord
 {
 	List<int[]> markers = new ArrayList<>();
 	String record = "";
-	HashAlgorithmName algorithm;
+	HashAlgorithm algorithm;
 	EncodingType encodingType;
 	SearchType searchType;
 

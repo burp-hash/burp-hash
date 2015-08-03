@@ -6,28 +6,33 @@ import java.util.Date;
  * This implementation of {@link ICookie}, {@link IParameter}, and {@link IBurpHashParameter} is used to homogenize the
  * object types during processing.
  */
-class Item implements ICookie, IParameter {
+class Item implements ICookie, IParameter 
+{
 	private ItemType type;
 	private Object item;
 	private String value = null;
 
-	Item(IParameter p) {
+	Item(IParameter p) 
+	{
 		this.type = ItemType.PARAMETER;
 		this.item = p;
 	}
 
-	Item(ICookie c) {
+	Item(ICookie c) 
+	{
 		this.type = ItemType.COOKIE;
 		this.item = c;
 	}
 	
 	Item(String s) 
 	{
+		this.value = s;
 		this.type = ItemType.VALUE_ONLY;
 		this.item = s;
 	}
 
-	Object getItem() {
+	Object getItem() 
+	{
 		return item;
 	}
 

@@ -104,6 +104,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		
 		//Observe hashes in request/response
 		hashes = new ArrayList<>();
+		issues = new ArrayList<>();
 		findHashes(baseRequestResponse, SearchType.REQUEST);
 		findHashes(baseRequestResponse, SearchType.RESPONSE);
 
@@ -160,12 +161,12 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 				}
 			}
 			String wholeRequest = new String(baseRequestResponse.getRequest(), StandardCharsets.UTF_8);
-			items.addAll(saveNewValueParams(findEmailRegex(wholeRequest)));
-			items.addAll(saveNewValueParams(findParamsInJson(wholeRequest)));
+			//items.addAll(saveNewValueParams(findEmailRegex(wholeRequest)));
+			//items.addAll(saveNewValueParams(findParamsInJson(wholeRequest)));
 			try 
 			{
 				String urlDecodedWholeRequest = URLDecoder.decode(wholeRequest, StandardCharsets.UTF_8.toString());
-				items.addAll(saveNewValueParams(findEmailRegex(urlDecodedWholeRequest)));
+				//items.addAll(saveNewValueParams(findEmailRegex(urlDecodedWholeRequest)));
 			} 
 			catch (UnsupportedEncodingException e) 
 			{
@@ -175,7 +176,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		IResponseInfo resp = helpers.analyzeResponse(baseRequestResponse.getResponse());
 		if (resp != null) 
 		{
-			items.addAll(saveHeaders(resp.getHeaders()));
+			//items.addAll(saveHeaders(resp.getHeaders()));
 			for (IParameter cookie : getCookieItems(resp.getCookies()))
 			{
 				if (config.debug) stdOut.println(moduleName + ": Found Response Cookie: '" + cookie.getName() + "':'" + cookie.getValue() + "'");
@@ -295,9 +296,9 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 					}
 					if (config.debug) stdOut.println(moduleName + ": " + algorithm.name.text + " hash already in db (" + paramWithHash.hashedValue + ")");
 				}
-				catch (NoSuchAlgorithmException nsae)
+				catch (Exception e)
 				{ 
-					stdOut.println(moduleName + ": No Such Algorithm Error" + nsae); 
+					stdOut.println(moduleName + ": " + e); 
 				}
 			}
 			parameters.add(param);

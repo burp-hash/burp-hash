@@ -110,10 +110,11 @@ class Config implements Serializable {
 	void loadHashAlgorithms()
 	{
 		hashAlgorithms = new ArrayList<>();
-		hashAlgorithms.add(new HashAlgorithm(128, HashAlgorithmName.SHA_512, 6, false));
-		hashAlgorithms.add(new HashAlgorithm(96, HashAlgorithmName.SHA_384, 5, false));
+		//As of now, we're always enabling all algorithms:
+		hashAlgorithms.add(new HashAlgorithm(128, HashAlgorithmName.SHA_512, 6, true));
+		hashAlgorithms.add(new HashAlgorithm(96, HashAlgorithmName.SHA_384, 5, true));
 		hashAlgorithms.add(new HashAlgorithm(64, HashAlgorithmName.SHA_256, 4, true));
-		hashAlgorithms.add(new HashAlgorithm(56, HashAlgorithmName.SHA_224, 3, false));
+		hashAlgorithms.add(new HashAlgorithm(56, HashAlgorithmName.SHA_224, 3, true));
 		hashAlgorithms.add(new HashAlgorithm(40, HashAlgorithmName.SHA_1, 2, true));
 		hashAlgorithms.add(new HashAlgorithm(32, HashAlgorithmName.MD5, 1, true));
 	}

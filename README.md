@@ -6,6 +6,10 @@ Many applications will hash parameters such as ID numbers and email addresses fo
 
 Here is a brief video that explains the concept: https://youtu.be/KdgeipzmESE
 
+### Downloads
+
+https://github.com/burp-hash/burp-hash/releases/
+
 ### Release
 
 We are pleased to announce burp-hash has been accepted for [Black Hat USA Arsenal 2015](https://www.blackhat.com/us-15/arsenal.html#burp-hash). Following the presentation at Black Hat, the software will be released to the public here on GitHub.
@@ -16,3 +20,4 @@ We are pleased to announce burp-hash has been accepted for [Black Hat USA Arsena
 * Scott Johnson
 * Tim MalcomVetter
 * Matt South
+

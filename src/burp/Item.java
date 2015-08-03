@@ -6,40 +6,45 @@ import java.util.Date;
  * This implementation of {@link ICookie}, {@link IParameter}, and {@link IBurpHashParameter} is used to homogenize the
  * object types during processing.
  */
-class Item implements ICookie, IParameter {
+class Item implements ICookie, IParameter 
+{
 	private ItemType type;
 	private Object item;
 	private String value = null;
 
-	Item(IParameter p) {
-		type = ItemType.PARAMETER;
-		item = p;
+	Item(IParameter p) 
+	{
+		this.type = ItemType.PARAMETER;
+		this.item = p;
 	}
 
-	Item(ICookie c) {
-		type = ItemType.COOKIE;
-		item = c;
+	Item(ICookie c) 
+	{
+		this.type = ItemType.COOKIE;
+		this.item = c;
 	}
 	
 	Item(String s) 
 	{
-		type = ItemType.VALUE_ONLY;
-		item = s;
+		this.value = s;
+		this.type = ItemType.VALUE_ONLY;
+		this.item = s;
 	}
 
-	Object getItem() {
+	Object getItem() 
+	{
 		return item;
 	}
 
 	ItemType getItemType() {
-		return type;
+		return this.type;
 	}
 
 	// Methods common to both interfaces
 	@Override
 	public String getName() 
  	{
-		switch (type)
+		switch (this.type)
 		{
 			case COOKIE:
 				return ((ICookie) item).getName();
@@ -54,29 +59,29 @@ class Item implements ICookie, IParameter {
 	@Override
 	public String getValue() 
 	{
-		switch (type)
+		switch (this.type)
 		{
 			case COOKIE:
-				if (value == null) return ((ICookie) item).getValue();
-				return value;
+				if (this.value == null) return ((ICookie) item).getValue();
+				return this.value;
 			case PARAMETER:
-				if (value == null) return ((IParameter) item).getValue();
-				return value;
+				if (this.value == null) return ((IParameter) item).getValue();
+				return this.value;
 			case VALUE_ONLY:
-				return value;
+				return this.value;
 		}
 		return null;
 	}
 	
 	public void setValue(String s)
 	{
-		value = s;
+		this.value = s;
 	}
 	
 	// ICookie methods
 	@Override
 	public String getDomain() {
-		if (getItemType().equals(ItemType.COOKIE)) {
+		if (this.getItemType() == ItemType.COOKIE) {
 			return ((ICookie) item).getDomain();
 		} else {
 			return null;
@@ -85,7 +90,7 @@ class Item implements ICookie, IParameter {
 
 	@Override
 	public Date getExpiration() {
-		if (getItemType().equals(ItemType.COOKIE)) {
+		if (this.getItemType() == ItemType.COOKIE) {
 			return ((ICookie) item).getExpiration();
 		} else {
 			return null;
@@ -95,7 +100,7 @@ class Item implements ICookie, IParameter {
 	// IParameter methods
 	@Override
 	public byte getType() {
-		if (getItemType().equals(ItemType.PARAMETER)) {
+		if (this.getItemType() == ItemType.PARAMETER) {
 			return ((IParameter) item).getType();
 		} else {
 			return -1;
@@ -104,7 +109,7 @@ class Item implements ICookie, IParameter {
 
 	@Override
 	public int getNameStart() {
-		if (getItemType().equals(ItemType.PARAMETER)) {
+		if (this.getItemType() == ItemType.PARAMETER) {
 			return ((IParameter) item).getNameStart();
 		} else {
 			return -1;
@@ -113,7 +118,7 @@ class Item implements ICookie, IParameter {
 
 	@Override
 	public int getNameEnd() {
-		if (getItemType().equals(ItemType.PARAMETER)) {
+		if (this.getItemType() == ItemType.PARAMETER) {
 			return ((IParameter) item).getNameEnd();
 		} else {
 			return -1;
@@ -122,7 +127,7 @@ class Item implements ICookie, IParameter {
 
 	@Override
 	public int getValueStart() {
-		if (getItemType().equals(ItemType.PARAMETER)) {
+		if (this.getItemType() == ItemType.PARAMETER) {
 			return ((IParameter) item).getValueStart();
 		} else {
 			return -1;
@@ -131,7 +136,7 @@ class Item implements ICookie, IParameter {
 
 	@Override
 	public int getValueEnd() {
-		if (getItemType().equals(ItemType.PARAMETER)) {
+		if (this.getItemType() == ItemType.PARAMETER) {
 			return ((IParameter) item).getValueEnd();
 		} else {
 			return -1;

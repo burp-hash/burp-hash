@@ -14,7 +14,8 @@ class HashAlgorithm implements Serializable
 	int charWidth;
 	HashAlgorithmName name;
 	Pattern pattern;
-	private final String hexRegex = "([a-fA-F0-9]{%s})";
+	final String hexRegex = "([a-fA-F0-9]+)";
+
 	boolean enabled;
 	
 	HashAlgorithm(int charWidth, HashAlgorithmName name, int id, boolean enabled)

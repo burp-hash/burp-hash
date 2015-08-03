@@ -10,13 +10,13 @@ class HashMatchesIssueText
 	HashMatchesIssueText(HashRecord hash, String plainTextValue)
 	{
 		Severity = "High";
-		Name = hash.algorithm.text + " Hash Match";
+		Name = hash.algorithm.name.text + " Hash Match";
 		String source = SearchType.RESPONSE.toString();
 		if (hash.searchType.equals(SearchType.REQUEST))
 		{
 			source = SearchType.REQUEST.toString();
 		}
-		Details = "The " + source + " contains a <b>" + hash.algorithm.text + "</b> hashed value that matches an observed parameter.<br><br>\n" 
+		Details = "The " + source + " contains a <b>" + hash.algorithm.name.text + "</b> hashed value that matches an observed parameter.<br><br>\n" 
 				+ "Observed hash: <b>" + hash.getNormalizedRecord() + "</b><br>"
 				+ "Source parameter: <b>" + plainTextValue + "</b><br>";
 		Confidence = "Firm";

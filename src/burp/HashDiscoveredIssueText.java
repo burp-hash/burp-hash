@@ -9,13 +9,13 @@ class HashDiscoveredIssueText
 
 	HashDiscoveredIssueText(HashRecord hash)
 	{
-		Name = hash.algorithm.text + " Hash Discovered";
+		Name = hash.algorithm.name.text + " Hash Discovered";
 		String source = SearchType.RESPONSE.toString();
 		if (hash.searchType.equals(SearchType.REQUEST))
 		{
 			source = "request";
 		}
-		Details = "The " + source + " contains what appears to be a <b>" + hash.algorithm.text + "</b> hashed value:\n<ul><li>" + hash.getNormalizedRecord() + "</li></ul>";
+		Details = "The " + source + " contains what appears to be a <b>" + hash.algorithm.name.text + "</b> hashed value:\n<ul><li>" + hash.getNormalizedRecord() + "</li></ul>";
 		if (!hash.encodingType.equals(EncodingType.Hex))
 		{
 			Details += "<br>The hash was discovered encoded as:\n<ul><li>" + hash.record + "</li></ul>";

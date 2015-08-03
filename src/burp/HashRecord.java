@@ -11,9 +11,10 @@ class HashRecord
 {
 	List<int[]> markers = new ArrayList<>();
 	String record = "";
-	HashAlgorithmName algorithm;
+	HashAlgorithm algorithm;
 	EncodingType encodingType;
 	SearchType searchType;
+	boolean reported = false;
 
 	String getNormalizedRecord() //TODO: normalize h:e:x, 0xFF
 	{

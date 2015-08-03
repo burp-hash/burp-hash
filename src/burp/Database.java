@@ -7,8 +7,13 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
+
 import org.sqlite.SQLiteConfig;
+
+import com.sun.webkit.ThemeClient;
 
 /**
  * Handles SQLite database access
@@ -22,13 +27,17 @@ class Database {
 	private final String moduleName = "DB";
 	private final String connPrefix = "jdbc:sqlite:";
 
-	Database(BurpExtender b) {
+	Database(BurpExtender b) 
+	{
 		config = b.getConfig();
 		stdErr = b.getStdErr();
 		stdOut = b.getStdOut();
-		try {
+		try 
+		{
 			Class.forName("org.sqlite.JDBC"); // load the JDBC Driver
-		} catch (ClassNotFoundException e) {
+		} 
+		catch (ClassNotFoundException e) 
+		{
 			stdErr.println(e.getMessage());
 		}
 	}
@@ -36,7 +45,8 @@ class Database {
 	/**
 	 * open a different database file after a config change
 	 */
-	void changeFile() {
+	void changeFile() 
+	{
 		close();
 		conn = getConnection();
 	}
@@ -44,12 +54,18 @@ class Database {
 	/**
 	 * close the database connection
 	 */
-	boolean close() {
-		try {
+	boolean close() 
+	{
+		try 
+		{
 			if (conn != null)
+			{
 				conn.close();
+			}
 			return true;
-		} catch (SQLException e) {
+		} 
+		catch (SQLException e) 
+		{
 			stdErr.println(e.getMessage());
 			return false;
 		}
@@ -58,12 +74,17 @@ class Database {
 	/**
 	 * TODO: this might need some tweaking
 	 */
-	protected void finalize() throws Throwable {
-		try {
+	protected void finalize() throws Throwable 
+	{
+		try 
+		{
 			if (conn != null)
+			{
 				conn.close();
+			}
 		}
-		finally {
+		finally 
+		{
 			super.finalize();
 		}
 	}
@@ -71,15 +92,19 @@ class Database {
 	/**
 	 * open and return database connections
 	 */
-	private Connection getConnection() {
+	private Connection getConnection() 
+	{
 		Connection connection;
 		SQLiteConfig sc = new SQLiteConfig();
 		sc.setEncoding(SQLiteConfig.Encoding.UTF_8);
-		try {
+		try 
+		{
 			connection = DriverManager.getConnection(connPrefix
 					+ config.databaseFilename, sc.toProperties());
 			stdOut.println(moduleName + ": Opened database file: " + config.databaseFilename);
-		} catch (SQLException e) {
+		} 
+		catch (SQLException e) 
+		{
 			stdErr.println(e.getMessage());
 			return null;
 		}
@@ -88,12 +113,14 @@ class Database {
 
 	/**
 	 * initialize the database
-	 * TODO: drop/create all necessary tables (params, hashes, etc.)
 	 */
-	boolean init() {
+	boolean init() 
+	{
 		Statement stmt = null;
-		try {
-			if (conn == null) {
+		try 
+		{
+			if (conn == null) 
+			{
 				conn = getConnection();
 			}
 			stmt = conn.createStatement();
@@ -121,7 +148,9 @@ class Database {
 			Collections.reverse(config.hashAlgorithms); //back to descending order for hash searching
 			stdOut.println(moduleName + ": Database initialized.");
 			return true;
-		} catch (SQLException e) {
+		} 
+		catch (SQLException e) 
+		{
 			stdErr.println(e.getMessage());
 			return false;
 		}
@@ -132,15 +161,18 @@ class Database {
 		}
 	}
 		
-	boolean saveParam(String paramValue) {
+	boolean saveParam(String paramValue) 
+	{
 		int paramId = getParamId(paramValue);
 		if (paramId > 0)
 		{
 			//if (config.debug) stdOut.println(moduleName + ": Not saving parameter (" + paramValue +") since it's already in the db at index = " + paramId);
 			return false;
 		}
-		try {
-			if (conn == null) {
+		try 
+		{
+			if (conn == null) 
+			{
 				conn = getConnection();
 			}
 			String sql_insertParam = "INSERT OR REPLACE INTO params(value) VALUES (?)";
@@ -149,7 +181,9 @@ class Database {
 			pstmt.executeUpdate();
 			stdOut.println(moduleName + ": Saving Discovered Parameter Value: " + paramValue);
 			return true;
-		} catch (SQLException e) {
+		} 
+		catch (SQLException e) 
+		{
 			stdErr.println(e.getMessage());
 			return false;
 		}
@@ -157,21 +191,26 @@ class Database {
 	
 	int getParamId(String paramValue)
 	{
-		try {
-			if (conn == null) {
+		try 
+		{
+			if (conn == null) 
+			{
 				conn = getConnection();
 			}
 			String sql_paramExists = "SELECT * from params where value = ?";
 			pstmt = conn.prepareStatement(sql_paramExists);
 			pstmt.setString(1, paramValue);
 			ResultSet rs = pstmt.executeQuery();
-			if (!rs.next()) {
+			if (!rs.next()) 
+			{
 				return 0;
 			}
 			int id = rs.getInt("id");
 			if (config.debug) stdOut.println(moduleName + ": Found '" + paramValue + "' in the db at index=" + id);
 			return id;
-		} catch (SQLException e) {
+		} 
+		catch (SQLException e) 
+		{
 			stdErr.println(moduleName + ": SQLException: " + e);
 			return -1;
 		}
@@ -179,35 +218,34 @@ class Database {
 		
 	String getParamByHash(HashRecord hash)
 	{
-		int algorithmId = config.getHashId(hash.algorithm);
-		if (algorithmId <= 0)
+		try 
 		{
-			stdErr.println(moduleName + ": Could not locate Algorithm ID for " + hash.algorithm);
-			return null;
-		}
-		try {
-			if (conn == null) {
+			if (conn == null) 
+			{
 				conn = getConnection();
 			}
 			String sql_paramExists = "select params.value from hashes inner join params on hashes.paramID=params.ID where hashes.algorithmid = ? and hashes.value = ?";
 			pstmt = conn.prepareStatement(sql_paramExists);
-			pstmt.setString(1, Integer.toString(algorithmId));
+			pstmt.setString(1, Integer.toString(hash.algorithm.id));
 			pstmt.setString(2, hash.getNormalizedRecord());
 			ResultSet rs = pstmt.executeQuery();
-			if (!rs.next()) {
+			if (!rs.next()) 
+			{
 				return null;
 			}
 			String paramValue = rs.getString("value");
 			if (config.debug) stdOut.println(moduleName + ": Match '" + paramValue + "' for '" + hash.getNormalizedRecord() +"'");
 			return paramValue;
-		} catch (SQLException e) {
+		} 
+		catch (SQLException e) 
+		{
 			stdErr.println(moduleName + ": SQLException: " + e);
 			return null;
 		}
-	}
+	}	
 	
-	
-	boolean saveParamWithHash(ParameterWithHash parmWithHash) {
+	boolean saveParamWithHash(ParameterWithHash parmWithHash) 
+	{
 		int paramId = getParamId(parmWithHash.parameter.value);
 		if (paramId <= 0)
 		{
@@ -215,8 +253,10 @@ class Database {
 			saveParam(parmWithHash.parameter.value);
 			paramId = getParamId(parmWithHash.parameter.value);
 		}
-		try {
-			if (conn == null) {
+		try 
+		{
+			if (conn == null) 
+			{
 				conn = getConnection();
 			}
 			int algorithmId = config.getHashId(parmWithHash.algorithm);
@@ -229,40 +269,41 @@ class Database {
 			pstmt = conn.prepareStatement(sql_insertHash);
 			pstmt.setString(1, Integer.toString(algorithmId));
 			pstmt.setString(2, Integer.toString(paramId));
-			pstmt.setString(3, parmWithHash.hashedValue); 
+			pstmt.setString(3, parmWithHash.hashedValue.toLowerCase()); 
 			pstmt.executeUpdate();
 			if (config.debug) stdOut.println(moduleName + ": Saved " + parmWithHash.algorithm.text + " hash in db: " + parmWithHash.parameter.value + ":" + parmWithHash.hashedValue);
 			return true;
-		} catch (SQLException e) {
+		} 
+		catch (SQLException e) 
+		{
 			stdErr.println(moduleName + ": SQLException: " + e);
 			return false;
 		}
 	}
 	
-	boolean saveHash(HashRecord hash) {
+	boolean saveHash(HashRecord hash) 
+	{
 		if (getHashIdByValue(hash.getNormalizedRecord()) > 0)
 		{
 			//stdOut.println(moduleName + ": Not saving hash (" + hash.getNormalizedRecord() + ") since it's already in the db.");
 			return false;
 		}
-		try {
-			if (conn == null) {
-				conn = getConnection();
-			}
-			int algorithmId = config.getHashId(hash.algorithm);
-			if (algorithmId <= 0)
+		try 
+		{
+			if (conn == null) 
 			{
-				stdErr.println(moduleName + ": Could not locate Algorithm ID for " + hash.algorithm);
-				return false;
+				conn = getConnection();
 			}
 			String sql_insertHash = "INSERT OR REPLACE INTO hashes(algorithmID, value) VALUES (?, ?)";
 			pstmt = conn.prepareStatement(sql_insertHash);
-			pstmt.setString(1, Integer.toString(algorithmId));
+			pstmt.setString(1, Integer.toString(hash.algorithm.id));
 			pstmt.setString(2, hash.getNormalizedRecord());
 			pstmt.executeUpdate();
-			stdOut.println(moduleName + ": Saving " + hash.algorithm.text + " hash of unknown source value in db: " + hash.getNormalizedRecord());
+			stdOut.println(moduleName + ": Saving " + hash.algorithm.name.text + " hash of unknown source value in db: " + hash.getNormalizedRecord());
 			return true;
-		} catch (SQLException e) {
+		} 
+		catch (SQLException e) 
+		{
 			stdErr.println(moduleName + ": SQLException: " + e);
 			return false;
 		}
@@ -270,53 +311,26 @@ class Database {
 	
 	int getHashIdByValue(String hashedValue)
 	{
-		try {
-			if (conn == null) {
+		try 
+		{
+			if (conn == null) 
+			{
 				conn = getConnection();
 			}
-			//TODO: Could just search on value only, rather than algorithmID:
 			String sql_hashExists = "SELECT * from hashes where value = ?";
 			pstmt = conn.prepareStatement(sql_hashExists);
 			pstmt.setString(1, hashedValue);
 			ResultSet rs = pstmt.executeQuery();
-			if (!rs.next()) {
+			if (!rs.next()) 
+			{
 				return 0;
 			}
 			int id = rs.getInt("id");
 			if (config.debug) stdOut.println(moduleName + ": Found '" + hashedValue + "' in the db at index=" + id);
 			return id;
-		} catch (SQLException e) {
-			stdErr.println(moduleName + ": SQLException: " + e);
-			return -1;
-		}
-	}
-	
-	// This is for searching for previously observed params with missing hashes for new algorithm types
-	int getHashIdByAlgorithmAndParam(Parameter param, HashAlgorithmName algorithmName)
-	{
-		try {
-			if (conn == null) {
-				conn = getConnection();
-			}
-			int algorithmId = config.getHashId(algorithmName);
-			if (algorithmId <= 0)
-			{
-				stdErr.println(moduleName + ": Could not locate Algorithm ID for " + algorithmName);
-				return -1;
-			}
-			int paramId = getParamId(param.value);
-			String sql_hashExists = "SELECT * from hashes where algorithmID = ? and paramID = ?";
-			pstmt = conn.prepareStatement(sql_hashExists);
-			pstmt.setString(1, Integer.toString(algorithmId));
-			pstmt.setString(2, Integer.toString(paramId));
-			ResultSet rs = pstmt.executeQuery();
-			if (!rs.next()) {
-				return 0;
-			}
-			int id = rs.getInt("id");
-			if (config.debug) stdOut.println(moduleName + ": Found " + algorithmName.text + " hash for '" + param.value + "' in the db at index=" + id);
-			return id;
-		} catch (SQLException e) {
+		} 
+		catch (SQLException e) 
+		{
 			stdErr.println(moduleName + ": SQLException: " + e);
 			return -1;
 		}
@@ -325,12 +339,15 @@ class Database {
 	/**
 	 * TODO: verify presence of all tables? (params, hashes, etc.) < Yes please, but !MVP [TM]
 	 */
-	boolean verify() {
+	boolean verify() 
+	{
 		Statement stmt = null;
 		ResultSet rs = null;
 
-		try {
-			if (conn == null) {
+		try 
+		{
+			if (conn == null) 
+			{
 				conn = getConnection();
 			}
 			stmt = conn.createStatement();
@@ -338,13 +355,47 @@ class Database {
 			String sql_tableCheck = "SELECT name FROM sqlite_master WHERE type='table' AND name='params';";
 			rs = stmt.executeQuery(sql_tableCheck);
 			boolean x = false;
-			while (rs.next()) {
+			while (rs.next()) 
+			{
 				x = true;
 			}
 			return x;
-		} catch (SQLException e) {
+		} 
+		catch (SQLException e) 
+		{
 			stdErr.println(moduleName + ": SQLException: " + e);
 			return false;
 		}
+	}
+
+	/**
+	 * TODO: This is to return the list of parameters that were saved without HashAlgorithm.Name hashes.
+	 * In other words, pump this list out, hash them against 'algorithm' and save them back to the DB for
+	 * future comparisons.
+	 * @param algorithm
+	 * @return
+	 */
+	public List<String> getParamsWithoutHashType(HashAlgorithm algorithm) 
+	{
+		List<String> params = new ArrayList<>();
+		//TODO: Need to fix this query - want to find all the params that don't have a hash table entry with algorithm ID matching the algorithm passed to this method:
+		String sql_selectMissing = "select ID, VALUE from params where ID not in (select paramID from hashes where hashes.algorithmID = ?)";
+		try 
+		{
+			pstmt = conn.prepareStatement(sql_selectMissing);
+			pstmt.setString(1, Integer.toString(algorithm.id));
+			ResultSet rs = pstmt.executeQuery();
+			while (rs.next()) 
+			{
+				//int paramId = rs.getInt("id");
+				String value = rs.getString("value");
+				params.add(value);
+			}
+		} 
+		catch (SQLException e) 
+		{
+			stdErr.println(moduleName + ": SQL Exception: " + e);
+		}
+		return params;
 	}
 }

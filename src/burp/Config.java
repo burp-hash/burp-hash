@@ -36,6 +36,7 @@ class Config implements Serializable {
 		cfg.callbacks = c;
 		cfg.stdErr = b.getStdErr();
 		cfg.stdOut = b.getStdOut();
+		cfg.loadHashAlgorithms(); //get a fresh copy of the algorithms so old regexes are not captured here.
 		if (cfg.hashAlgorithms == null || cfg.hashAlgorithms.isEmpty()) 
 		{
 			cfg.stdOut.println(moduleName + ": Hash algorithm configuration is missing ... rebuilding defaults.");
@@ -59,7 +60,8 @@ class Config implements Serializable {
 	/**
 	 * constructor used only when saved config is not found
 	 */
-	private Config(BurpExtender b) {
+	private Config(BurpExtender b) 
+	{
 		callbacks = b.getCallbacks();
 		stdErr = b.getStdErr();
 		stdOut = b.getStdOut();
@@ -70,7 +72,8 @@ class Config implements Serializable {
 	/**
 	 * reset to default config
 	 */
-	void reset() {
+	void reset() 
+	{
 		callbacks.saveExtensionSetting(BurpExtender.extensionName, null);
 		setDefaults();
 	}
@@ -78,13 +81,16 @@ class Config implements Serializable {
 	/**
 	 * save serialized Config object into Burp extension settings
 	 */
-	void save() {
+	void save() 
+	{
 		ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-		try {
+		try 
+		{
 			ObjectOutputStream out = new ObjectOutputStream(bytes);
 			out.writeObject(this);
 		}
-		catch (IOException e) {
+		catch (IOException e) 
+		{
 			stdErr.println(moduleName + ": Error saving configuration: " + e);
 			return;
 		}
@@ -95,19 +101,20 @@ class Config implements Serializable {
 	/**
 	 * set default values in Config properties
 	 */
-	private void setDefaults() {
-		/*isMd5Enabled = isSha1Enabled = isSha256Enabled = true;
-		isSha224Enabled = isSha384Enabled = isSha512Enabled = reportHashesOnly = false;*/
+	private void setDefaults() 
+	{
 		databaseFilename = BurpExtender.extensionName + ".sqlite";
 		loadHashAlgorithms();
 	}
 
 	void loadHashAlgorithms()
 	{
-		hashAlgorithms.add(new HashAlgorithm(128, HashAlgorithmName.SHA_512, 6, false));
-		hashAlgorithms.add(new HashAlgorithm(96, HashAlgorithmName.SHA_384, 5, false));
+		hashAlgorithms = new ArrayList<>();
+		//As of now, we're always enabling all algorithms:
+		hashAlgorithms.add(new HashAlgorithm(128, HashAlgorithmName.SHA_512, 6, true));
+		hashAlgorithms.add(new HashAlgorithm(96, HashAlgorithmName.SHA_384, 5, true));
 		hashAlgorithms.add(new HashAlgorithm(64, HashAlgorithmName.SHA_256, 4, true));
-		hashAlgorithms.add(new HashAlgorithm(56, HashAlgorithmName.SHA_224, 3, false));
+		hashAlgorithms.add(new HashAlgorithm(56, HashAlgorithmName.SHA_224, 3, true));
 		hashAlgorithms.add(new HashAlgorithm(40, HashAlgorithmName.SHA_1, 2, true));
 		hashAlgorithms.add(new HashAlgorithm(32, HashAlgorithmName.MD5, 1, true));
 	}

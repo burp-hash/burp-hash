@@ -592,7 +592,25 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 				hashes.add(hash);
 			}
 		}
-
+		findB64HashRegex(s, pattern, algorithm);
+		
+		//TODO: this url decoding will probably throw the match markers off.  
+		// Oh well. Fix it later. Better to have markers off than miss the hashes.
+		String urldecoded = "";
+		try 
+		{
+			urldecoded = URLDecoder.decode(s, "UTF-8");
+		} 
+		catch (UnsupportedEncodingException e) 
+		{
+			// TODO Auto-generated catch block
+		}
+		findB64HashRegex(urldecoded, pattern, algorithm);
+	}
+	
+	protected void findB64HashRegex(String s, Pattern pattern, HashAlgorithm algorithm)
+	{
+		Matcher matcher = pattern.matcher(s);
 		// search for Base64-encoded data
 		Matcher b64matcher = b64Regex.matcher(s);
 		while (b64matcher.find())
@@ -609,8 +627,8 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 				// find base64-encoded hex strings representing hashes
 				byte[] byteHash = Base64.getDecoder().decode(b64EncodedHash);
 				String strHash = new String(byteHash, StandardCharsets.UTF_8);
-				//stdOut.println("B64 hex string: " + strHash);
-				matcher = pattern.matcher(strHash);
+				stdOut.println("B64 hex string: " + strHash);
+				matcher = pattern.matcher(strHash);				
 				//enforce char width here to prevent smaller hashes from false positives with larger hashes:
 				if (matcher.matches() && matcher.group().length() == algorithm.charWidth)
 				{
@@ -630,8 +648,27 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 
 				// find base64-encoded raw hashes
 				String hexHash = Utilities.byteArrayToHex(Base64.getDecoder().decode(b64EncodedHash));
-				//stdOut.println("B64 raw hash: " + hexHash);
+				stdOut.println("B64 raw hash: " + hexHash);
 				matcher = pattern.matcher(hexHash);
+				
+				if (!matcher.matches())
+				{
+					try 
+					{
+						String urldecoded = URLDecoder.decode(strHash, "UTF-8");
+						if (!urldecoded.equals(hexHash))
+						{
+							if (config.debug) stdOut.println(moduleName + ": Detected URL Encoded Base 64 parameter: " + hexHash);
+							matcher = pattern.matcher(urldecoded);
+							//TODO: this will probably throw the match markers off.  Oh well. Fix it later.
+						}
+					} 
+					catch (UnsupportedEncodingException e) 
+					{
+						// TODO Auto-generated catch block
+					}
+				}
+				
 				//enforce char width here to prevent smaller hashes from false positives with larger hashes:
 				if (matcher.matches() && matcher.group().length() == algorithm.charWidth)
 				{

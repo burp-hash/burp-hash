@@ -8,6 +8,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.net.URLDecoder;
@@ -134,6 +135,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			items.addAll(saveHeaders(req.getHeaders()));
 			for (IParameter param : req.getParameters())
 			{
+				//TODO: Consider hashing the parameter with any hash algorithms missing from DB
 				if (config.debug) stdOut.println(moduleName + ": Found Request Parameter: '" + param.getName() + "':'" + param.getValue() + "'");
 				if (db.saveParam(param.getValue()))
 				{
@@ -320,6 +322,11 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			findHashRegex(s, hashAlgorithm.pattern, hashAlgorithm);
 			for(HashRecord hash : hashes)
 			{
+				if (hash.reported)
+				{
+					continue;
+				}
+				hash.reported = true;
 				hash.searchType = searchType;
 				stdOut.println(moduleName + ": Found " + hashAlgorithm.name.text + " hash in " + searchType + ": " + hash.record);
 				//TODO: same hash string with different marker values gets lost
@@ -329,7 +336,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 				{
 					config.toggleHashAlgorithm(hashAlgorithm.name, true);
 					if (config.debug) stdOut.println(moduleName + ": Dynamic hash detection enabled " + hashAlgorithm.name.text + ".");
-					//rehashSavedParameters(hashAlgorithm);
+					rehashSavedParameters(hashAlgorithm);
 				}
 				break; //to avoid a false 'match' with a shorter hash algorithm
 			}
@@ -468,18 +475,30 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		//TODO: Add support for 0xFF style encoding (!MVP)
 		//TODO: Consider adding support for double-url encoded values (!MVP)
 		Matcher matcher = pattern.matcher(s);
-		stdOut.println("pattern: " + algorithm.hexRegex);
 		// search for hashes in raw request/response
 		while (matcher.find())
 		{
 			String result = matcher.group();
-			stdOut.println("Actual: " + result.length() + " Target: " + algorithm.charWidth);
+//			stdOut.println("Actual: " + result.length() + " Target: " + algorithm.charWidth + " found: " + result);
 			//enforce char length of the match here, rather than regex which has false positives
 			if (result.length() != algorithm.charWidth)
 			{
+				//stdOut.println("Length mismatch");
 				continue;
 			}
-			stdOut.println("Actual: " + result.length() + " Target: " + algorithm.charWidth);
+//			stdOut.println("s.length(): " + s.length() + " result.end(): " + matcher.end());
+			if (matcher.end() + 1 < s.length())
+			{
+				String nextChars = s.substring(matcher.end(), matcher.end() + 1);
+				Matcher next = pattern.matcher(nextChars);
+				stdOut.println("Next: '" + nextChars + "' pattern: " + next.pattern().toString());
+				if (next.find())
+				{
+					//the next char is also [a-zA-Z0-9] so this is a false positive
+					stdOut.println("the next char is also [a-fA-F0-9] so this is a false positive");
+					continue;
+				}
+			}
 			HashRecord hash = new HashRecord();
 			hash.markers.add(new int[] { matcher.start(), matcher.end() });
 			hash.record = matcher.group();

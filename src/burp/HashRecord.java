@@ -14,6 +14,7 @@ class HashRecord
 	HashAlgorithm algorithm;
 	EncodingType encodingType;
 	SearchType searchType;
+	boolean reported = false;
 
 	String getNormalizedRecord() //TODO: normalize h:e:x, 0xFF
 	{

@@ -36,6 +36,7 @@ class Config implements Serializable {
 		cfg.callbacks = c;
 		cfg.stdErr = b.getStdErr();
 		cfg.stdOut = b.getStdOut();
+		cfg.loadHashAlgorithms(); //get a fresh copy of the algorithms so old regexes are not captured here.
 		if (cfg.hashAlgorithms == null || cfg.hashAlgorithms.isEmpty()) 
 		{
 			cfg.stdOut.println(moduleName + ": Hash algorithm configuration is missing ... rebuilding defaults.");
@@ -108,6 +109,7 @@ class Config implements Serializable {
 
 	void loadHashAlgorithms()
 	{
+		hashAlgorithms = new ArrayList<>();
 		hashAlgorithms.add(new HashAlgorithm(128, HashAlgorithmName.SHA_512, 6, false));
 		hashAlgorithms.add(new HashAlgorithm(96, HashAlgorithmName.SHA_384, 5, false));
 		hashAlgorithms.add(new HashAlgorithm(64, HashAlgorithmName.SHA_256, 4, true));

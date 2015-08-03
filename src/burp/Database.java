@@ -269,7 +269,7 @@ class Database {
 			pstmt = conn.prepareStatement(sql_insertHash);
 			pstmt.setString(1, Integer.toString(algorithmId));
 			pstmt.setString(2, Integer.toString(paramId));
-			pstmt.setString(3, parmWithHash.hashedValue); 
+			pstmt.setString(3, parmWithHash.hashedValue.toLowerCase()); 
 			pstmt.executeUpdate();
 			if (config.debug) stdOut.println(moduleName + ": Saved " + parmWithHash.algorithm.text + " hash in db: " + parmWithHash.parameter.value + ":" + parmWithHash.hashedValue);
 			return true;
@@ -378,12 +378,12 @@ class Database {
 	public List<String> getParamsWithoutHashType(HashAlgorithm algorithm) 
 	{
 		List<String> params = new ArrayList<>();
+		//TODO: Need to fix this query - want to find all the params that don't have a hash table entry with algorithm ID matching the algorithm passed to this method:
 		String sql_selectMissing = "select ID, VALUE from params where ID not in (select paramID from hashes where hashes.algorithmID = ?)";
 		try 
 		{
 			pstmt = conn.prepareStatement(sql_selectMissing);
 			pstmt.setString(1, Integer.toString(algorithm.id));
-			pstmt.executeUpdate();
 			ResultSet rs = pstmt.executeQuery();
 			while (rs.next()) 
 			{

@@ -21,7 +21,9 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 	static final String extensionName = "burp-hash";
 	static final String moduleName = "Scanner";
 	static final String extensionUrl = "https://burp-hash.github.io/";
-	Pattern b64 = Pattern.compile("(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?");
+	public Pattern b64Regex = Pattern.compile("(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?");
+	public Pattern emailRegex = Pattern.compile("[^=\"&;:\\s]*[a-zA-Z0-9-_\\.]+@[a-zA-Z0-9-\\.]+.[a-zA-Z]+");
+	//public Pattern emailRegex2 = Pattern.compile("[^=\"&;:\\s]*[a-zA-Z0-9-_\\.]+@[a-zA-Z0-9-]+.[a-zA-Z]+");
 	private IBurpExtenderCallbacks callbacks;
 	private Config config;
 	private Database db;
@@ -61,36 +63,6 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			return 0; // use both issues
 		}
 	}
-
-	
-/*
-	private void createHashMatchesIssues(IHttpRequestResponse baseRequestResponse, HashRecord hash, String PlainText)
-		//might not need this the way it's currently implemented
-	{
-		IHttpRequestResponse[] message;
-		if (hash.searchType.equals(SearchType.REQUEST))
-		{ //apply markers to the request
-			message = new IHttpRequestResponse[] { callbacks.applyMarkers(baseRequestResponse, hash.markers, null) };
-		}
-		else
-		{ //apply markers to the response
-			message = new IHttpRequestResponse[] { callbacks.applyMarkers(baseRequestResponse, null, hash.markers) };
-		}
-		HashMatchesIssueText issueText = new HashMatchesIssueText(hash, PlainText);
-		Issue issue = new Issue(
-                baseRequestResponse.getHttpService(),
-                helpers.analyzeRequest(baseRequestResponse).getUrl(),
-                message,
-                issueText.Name,
-                issueText.Details,
-                issueText.Severity,
-                issueText.Confidence,
-                issueText.RemediationDetails,
-                issueText.Background,
-                issueText.RemediationBackground);
-		issues.add(issue);
-	}
-*/
 	
 	/**
 	 * Active Scanning is not implemented with this plugin.
@@ -125,7 +97,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		if (!config.reportHashesOnly)
 		{
 			//TODO: something in here may be generating duplicate hashes in memory (not in sqlite)
-			// the dupe is redundant for matching hashes to params
+			// the dupe is redundant for matching hashes to params:
 			hashNewParameters(findNewParameters(baseRequestResponse));
 		}
 		
@@ -153,16 +125,13 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		return issues;
 	}
 	
-	private List<Item> findNewParameters(IHttpRequestResponse baseRequestResponse)
+	protected List<Item> findNewParameters(IHttpRequestResponse baseRequestResponse)
 	{
 		List<Item> items = new ArrayList<>();
 		IRequestInfo req = helpers.analyzeRequest(baseRequestResponse);
 		if (req != null)
 		{
-			//TODO: Find cookies from request
-			//TODO: Find params in JSON request
-			//TODO: Find params in request headers
-			//TODO: Consider url decoding parameters before saving/comparing to db
+			items.addAll(saveHeaders(req.getHeaders()));
 			for (IParameter param : req.getParameters())
 			{
 				if (config.debug) stdOut.println(moduleName + ": Found Request Parameter: '" + param.getName() + "':'" + param.getValue() + "'");
@@ -189,48 +158,90 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 				}
 			}
 			String wholeRequest = new String(baseRequestResponse.getRequest(), StandardCharsets.UTF_8);
-			items.addAll(findEmailRegex(wholeRequest));
-			items.addAll(findParamsInJson(wholeRequest));
+			items.addAll(saveNewValueParams(findEmailRegex(wholeRequest)));
+			items.addAll(saveNewValueParams(findParamsInJson(wholeRequest)));
+			try 
+			{
+				String urlDecodedWholeRequest = URLDecoder.decode(wholeRequest, StandardCharsets.UTF_8.toString());
+				items.addAll(saveNewValueParams(findEmailRegex(urlDecodedWholeRequest)));
+			} 
+			catch (UnsupportedEncodingException e) 
+			{
+				if (config.debug) stdOut.println(moduleName + ": encoding exception: " + e);
+			}
 		}
 		IResponseInfo resp = helpers.analyzeResponse(baseRequestResponse.getResponse());
 		if (resp != null) 
 		{
-			//TODO: Find params in JSON response
-			//TODO: Find params in response headers
-			//TODO: Find params in html body response via common regexes (email, user ID, credit card, etc.)
+			items.addAll(saveHeaders(resp.getHeaders()));
 			for (IParameter cookie : getCookieItems(resp.getCookies()))
 			{
 				if (config.debug) stdOut.println(moduleName + ": Found Response Cookie: '" + cookie.getName() + "':'" + cookie.getValue() + "'");
-				if (db.saveParam(cookie.getName()))
+				if (db.saveParam(cookie.getName())) //check the cookie name
 				{
 					items.add(new Item(cookie));
-
 				}
-			}
+				if (db.saveParam(cookie.getValue())) //as well as its value
+				{
+					items.add(new Item(cookie));
+				}
+			}			
+			//TODO: Find params in html body response via common regexes (email, user ID, credit card, etc.)
 			String wholeResponse = new String(baseRequestResponse.getResponse(), StandardCharsets.UTF_8);
-			items.addAll(findEmailRegex(wholeResponse));
-			items.addAll(findParamsInJson(wholeResponse));
+			items.addAll(saveNewValueParams(findEmailRegex(wholeResponse)));
+			items.addAll(saveNewValueParams(findParamsInJson(wholeResponse)));
 			// if (config.debug) stdOut.println("Items stored: " + items.size());
 		}
 		return items;
 	}
 	
-	private List<Item> findEmailRegex(String msg)
+	protected List<Item> saveHeaders(List<String> headers)
+	{
+		//TODO: Find cookies from request
+		//TODO: Find params in request headers
+		List<Item> items = new ArrayList<>();
+		for (String header : headers)
+		{
+			if (config.debug) stdOut.println(moduleName + ": header = " + header);
+			if (db.saveParam(header))
+			{
+				items.add(new Item(header)); //save and hash entire header
+			}
+		}
+		return items;
+	}
+	
+	protected List<Item> saveNewValueParams(List<Item> items)
+	{
+		List<Item> savedItems = new ArrayList<>();
+		for (Item item : items)
+		{
+			if (db.saveParam(item.getValue()))
+			{
+				savedItems.add(item);
+			}
+		}		
+		return savedItems;
+	}
+	
+	protected List<Item> findEmailRegex(String msg)
 	{
 		List<Item> items = new ArrayList<>();
-		final String emailRegex = "[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,4}";
-		Pattern pattern = Pattern.compile(emailRegex);
-		Matcher matcher = pattern.matcher(msg);
+		Matcher matcher = emailRegex.matcher(msg);
 		while (matcher.find())
 		{
 			String email = matcher.group();
+			if (email.contains("&"))
+			{
+				email = email.split("&")[0];
+			}
 			if (config.debug) stdOut.println(moduleName + ": Found Email by Regex: " + email);			
 			items.add(new Item(email));
 		}
 		return items;
 	}
 	
-	private List<Item> findParamsInJson(String msg)
+	protected List<Item> findParamsInJson(String msg)
 	{
 		List<Item> items = new ArrayList<>();
 		if (Pattern.compile(Pattern.quote("json"), Pattern.CASE_INSENSITIVE).matcher(msg).find())
@@ -243,7 +254,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		return items;
 	}
 	
-	private void hashNewParameters(List<Item> items)
+	protected void hashNewParameters(List<Item> items)
 	{
 		for(Item item : items)
 		{
@@ -269,11 +280,12 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 					paramWithHash.parameter = param;
 					paramWithHash.algorithm = algorithm.name;
 					paramWithHash.hashedValue = HashEngine.Hash(param.value, algorithm.name);
-					if (config.debug) stdOut.println(moduleName + ": " + algorithm.name.text + " hash for: " + param.value + " hash=" + paramWithHash.hashedValue);
 					if (db.saveParamWithHash(paramWithHash)) 
 					{
+						if (config.debug) stdOut.println(moduleName + ": " + algorithm.name.text + " saved hash for: " + param.value + " hash=" + paramWithHash.hashedValue);
 						continue;
 					}
+					if (config.debug) stdOut.println(moduleName + ": " + algorithm.name.text + " hash already in db (" + paramWithHash.hashedValue + ")");
 				}
 				catch (NoSuchAlgorithmException nsae)
 				{ 
@@ -284,7 +296,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		}
 	}
 
-	private List<HashRecord> findHashes(IHttpRequestResponse baseRequestResponse, SearchType searchType)
+	protected List<HashRecord> findHashes(IHttpRequestResponse baseRequestResponse, SearchType searchType)
 	{
 		String s;
 		List<HashRecord> currentHashes = new ArrayList<>();
@@ -316,7 +328,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		return currentHashes;
 	}
 	
-	private List<IScanIssue> createHashDiscoveredIssues(List<HashRecord> foundHashes, IHttpRequestResponse baseRequestResponse)
+	protected List<IScanIssue> createHashDiscoveredIssues(List<HashRecord> foundHashes, IHttpRequestResponse baseRequestResponse)
 	{
 		List<IScanIssue> issues = new ArrayList<>();
 		for(HashRecord hash : foundHashes)
@@ -347,7 +359,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		return issues;
 	}
 
-	private List<IScanIssue> matchParamsToHashes(IHttpRequestResponse baseRequestResponse)
+	protected List<IScanIssue> matchParamsToHashes(IHttpRequestResponse baseRequestResponse)
 	{
 		if (config.debug) stdOut.println(moduleName + ": Matching Params to " + hashes.size() + " observed hashes.");
 		List<IScanIssue> issues = new ArrayList<>();
@@ -389,7 +401,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		return issues;
 	}
 
-	private List<HashRecord> findHashRegex(String s, Pattern pattern, HashAlgorithmName algorithm)
+	protected List<HashRecord> findHashRegex(String s, Pattern pattern, HashAlgorithmName algorithm)
 	{
 		//TODO: Add support for f0:a3:cd style encoding (!MVP)
 		//TODO: Add support for 0xFF style encoding (!MVP)
@@ -432,7 +444,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		}
 
 		// search for Base64-encoded data
-		Matcher b64matcher = b64.matcher(s);
+		Matcher b64matcher = b64Regex.matcher(s);
 		while (b64matcher.find())
 		{
 			String b64EncodedHash = b64matcher.group();
@@ -494,7 +506,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		return config;
 	}
 	
-	private List<Item> getCookieItems(List<ICookie> cookies)
+	protected List<Item> getCookieItems(List<ICookie> cookies)
 	{
 		List<Item> items = new ArrayList<>();
 		for (ICookie cookie : cookies) 
@@ -516,7 +528,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		return stdOut;
 	}
 
-	private boolean isItemAHash(Item item)
+	protected boolean isItemAHash(Item item)
 	{
 		//TODO: implement a check to see if the item is already a hash
 		for(HashRecord hash : hashes)

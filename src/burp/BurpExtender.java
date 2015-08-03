@@ -480,23 +480,19 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		while (matcher.find())
 		{
 			String result = matcher.group();
-//			stdOut.println("Actual: " + result.length() + " Target: " + algorithm.charWidth + " found: " + result);
 			//enforce char length of the match here, rather than regex which has false positives
 			if (result.length() != algorithm.charWidth)
 			{
-				//stdOut.println("Length mismatch");
 				continue;
 			}
-//			stdOut.println("s.length(): " + s.length() + " result.end(): " + matcher.end());
 			if (matcher.end() + 1 < s.length())
 			{
 				String nextChars = s.substring(matcher.end(), matcher.end() + 1);
 				Matcher next = pattern.matcher(nextChars);
-				stdOut.println("Next: '" + nextChars + "' pattern: " + next.pattern().toString());
+				//stdOut.println("Next: '" + nextChars + "' pattern: " + next.pattern().toString());
 				if (next.find())
 				{
-					//the next char is also [a-zA-Z0-9] so this is a false positive
-					stdOut.println("the next char is also [a-fA-F0-9] so this is a false positive");
+					//stdOut.println("the next char is also [a-fA-F0-9] so this is a false positive");
 					continue;
 				}
 			}
@@ -522,11 +518,13 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 			{
 				continue;
 			}
+			//stdOut.println("B64: " + b64EncodedHash);
 			try
 			{
 				// find base64-encoded hex strings representing hashes
 				byte[] byteHash = Base64.getDecoder().decode(b64EncodedHash);
 				String strHash = new String(byteHash, StandardCharsets.UTF_8);
+				//stdOut.println("B64 hex string: " + strHash);
 				matcher = pattern.matcher(strHash);
 				//enforce char width here to prevent smaller hashes from false positives with larger hashes:
 				if (matcher.matches() && matcher.group().length() == algorithm.charWidth)
@@ -547,6 +545,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 
 				// find base64-encoded raw hashes
 				String hexHash = Utilities.byteArrayToHex(Base64.getDecoder().decode(b64EncodedHash));
+				//stdOut.println("B64 raw hash: " + hexHash);
 				matcher = pattern.matcher(hexHash);
 				//enforce char width here to prevent smaller hashes from false positives with larger hashes:
 				if (matcher.matches() && matcher.group().length() == algorithm.charWidth)

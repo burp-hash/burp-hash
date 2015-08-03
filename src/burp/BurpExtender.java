@@ -162,12 +162,12 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 				}
 			}
 			String wholeRequest = new String(baseRequestResponse.getRequest(), StandardCharsets.UTF_8);
-			//items.addAll(saveNewValueParams(findEmailRegex(wholeRequest)));
-			//items.addAll(saveNewValueParams(findParamsInJson(wholeRequest)));
+			items.addAll(saveNewValueParams(findEmailRegex(wholeRequest)));
+			items.addAll(saveNewValueParams(findParamsInJson(baseRequestResponse)));
 			try 
 			{
 				String urlDecodedWholeRequest = URLDecoder.decode(wholeRequest, StandardCharsets.UTF_8.toString());
-				//items.addAll(saveNewValueParams(findEmailRegex(urlDecodedWholeRequest)));
+				items.addAll(saveNewValueParams(findEmailRegex(urlDecodedWholeRequest)));
 			} 
 			catch (UnsupportedEncodingException e) 
 			{
@@ -177,7 +177,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck
 		IResponseInfo resp = helpers.analyzeResponse(baseRequestResponse.getResponse());
 		if (resp != null) 
 		{
-			//items.addAll(saveHeaders(resp.getHeaders()));
+			items.addAll(saveHeaders(resp.getHeaders()));
 			for (IParameter cookie : getCookieItems(resp.getCookies()))
 			{
 				if (config.debug) stdOut.println(moduleName + ": Found Response Cookie: '" + cookie.getName() + "':'" + cookie.getValue() + "'");
